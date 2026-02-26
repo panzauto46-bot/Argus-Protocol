@@ -139,7 +139,7 @@ export default function Configuration() {
         </div>
 
         {/* Time Window */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop data-tilt-strength={5.4}>
+        <div className={`p-6 rounded-2xl border relative ${showDropdown ? 'z-[90]' : 'z-10'} ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop data-tilt-strength={5.4}>
           <div className="flex items-center gap-3 mb-4">
             <div className={`pop-icon w-10 h-10 rounded-xl flex items-center justify-center ${dark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
               <Zap size={20} />
@@ -179,7 +179,7 @@ export default function Configuration() {
                 <ChevronDown size={16} className={`transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
               </button>
               {showDropdown && (
-                <div className={`absolute top-full left-0 right-0 mt-1 rounded-xl border overflow-hidden z-10 ${
+                <div className={`absolute top-full left-0 right-0 mt-1 rounded-xl border overflow-hidden z-[120] ${
                   dark ? 'bg-argus-card border-argus-border' : 'bg-white border-gray-200 shadow-lg'
                 }`}>
                   {timeOptions.map((option) => (
