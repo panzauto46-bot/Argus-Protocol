@@ -108,7 +108,7 @@ export default function RecoveryPanel() {
       )}
 
       {/* Incident Report */}
-      <div className={`rounded-2xl border mb-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt>
+      <div className={`rounded-2xl border mb-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop="strong" data-tilt-strength={4.8}>
         <div className="p-6 pb-4 flex items-center gap-3">
           <FileText size={20} className={dark ? 'text-gray-400' : 'text-gray-500'} />
           <h2 className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Incident Report</h2>
@@ -154,7 +154,7 @@ export default function RecoveryPanel() {
       </div>
 
       {/* Savings Visualization */}
-      <div className={`rounded-2xl border mb-6 p-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={90} data-tilt>
+      <div className={`rounded-2xl border mb-6 p-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={90} data-tilt data-pop="strong" data-tilt-strength={4.6}>
         <h3 className={`text-sm font-bold mb-4 ${dark ? 'text-white' : 'text-gray-900'}`}>Fund Protection Summary</h3>
         <div className="relative h-10 rounded-full overflow-hidden bg-gray-800/50 mb-4">
           <div
@@ -240,7 +240,7 @@ export default function RecoveryPanel() {
       )}
 
       {/* Timeline */}
-      <div className={`rounded-2xl border mt-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={160}>
+      <div className={`rounded-2xl border mt-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={160} data-tilt data-pop="strong" data-tilt-strength={4.4}>
         <div className="p-6 pb-4">
           <h3 className={`font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Incident Timeline</h3>
         </div>

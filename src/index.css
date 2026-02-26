@@ -214,6 +214,19 @@ html:not(.dark) .app-vignette {
 [data-pop] {
   --tilt-lift: 0px;
   --tilt-scale: 1;
+  --pop-shadow: var(--motion-pop-shadow);
+  --pop-border: rgba(34, 211, 238, 0.24);
+  --pop-lift: var(--motion-pop-lift);
+  --pop-scale: var(--motion-pop-scale);
+}
+
+[data-pop='strong'] {
+  --pop-shadow:
+    0 38px 72px -40px rgba(6, 182, 212, 0.72),
+    0 0 0 1px rgba(34, 211, 238, 0.32);
+  --pop-border: rgba(56, 189, 248, 0.46);
+  --pop-lift: -10px;
+  --pop-scale: 1.018;
 }
 
 [data-pop]::after {
@@ -222,7 +235,7 @@ html:not(.dark) .app-vignette {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  border: 1px solid rgba(34, 211, 238, 0.24);
+  border: 1px solid var(--pop-border);
   opacity: 0;
   transform: scale(0.985);
   transition:
@@ -233,9 +246,9 @@ html:not(.dark) .app-vignette {
 
 [data-pop]:hover,
 [data-pop]:focus-within {
-  --tilt-lift: var(--motion-pop-lift);
-  --tilt-scale: var(--motion-pop-scale);
-  box-shadow: var(--motion-pop-shadow);
+  --tilt-lift: var(--pop-lift);
+  --tilt-scale: var(--pop-scale);
+  box-shadow: var(--pop-shadow);
 }
 
 [data-pop]:hover::after,

@@ -71,7 +71,7 @@ export default function Notifications() {
 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Discord */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop data-tilt-strength={5.2}>
+        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop="strong" data-tilt-strength={5}>
           <div className="flex items-center gap-3 mb-5">
             <div className="pop-icon w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
               <MessageSquare size={20} />
@@ -126,7 +126,7 @@ export default function Notifications() {
         </div>
 
         {/* Telegram */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={80} data-tilt data-pop data-tilt-strength={5.2}>
+        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={80} data-tilt data-pop="strong" data-tilt-strength={5}>
           <div className="flex items-center gap-3 mb-5">
             <div className="pop-icon w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
               <Send size={20} />
@@ -201,7 +201,7 @@ export default function Notifications() {
       </div>
 
       {/* Notification History */}
-      <div className={`rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop data-tilt-strength={4.6}>
+      <div className={`rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop="strong" data-tilt-strength={4.6}>
         <div className="p-6 pb-4">
           <h2 className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Alert History</h2>
           <p className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Recent notifications sent across all channels</p>
