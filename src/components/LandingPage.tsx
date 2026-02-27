@@ -160,7 +160,7 @@ export default function LandingPage() {
     { icon: <Shield size={24} />, title: 'Zero Trust', desc: 'No external servers or admin intervention required. Fully on-chain security.' },
   ];
 
-  const roadmapItems = useMemo(() => {
+  const sessionState = useMemo(() => {
     const isOnSomniaTestnet = walletConnected && walletChainId === SOMNIA_TESTNET_CHAIN_ID;
     const hasActiveMonitor = monitoringConfig.enabled && monitoringConfig.contractAddress.length > 0;
     const hasReactivityLive = alerts.some(
@@ -170,27 +170,71 @@ export default function LandingPage() {
     const hasCriticalDetection =
       contractStatus === 'triggered' || alerts.some((alert) => alert.level === 'critical' && alert.channel === 'Reactivity');
 
+    return {
+      isOnSomniaTestnet,
+      hasActiveMonitor,
+      hasReactivityLive,
+      hasRecoveryFlow,
+      hasCriticalDetection,
+      liveSignals: [
+        {
+          id: 'wallet',
+          label: 'Wallet Session',
+          active: walletConnected,
+          hint: walletConnected ? 'Wallet connected' : 'Connect wallet to unlock full flow',
+        },
+        {
+          id: 'network',
+          label: 'Somnia Testnet',
+          active: isOnSomniaTestnet,
+          hint: isOnSomniaTestnet ? 'Chain 50312 active' : 'Switch network to Somnia Testnet',
+        },
+        {
+          id: 'monitor',
+          label: 'Monitor Config',
+          active: hasActiveMonitor,
+          hint: hasActiveMonitor ? 'Tripwire config loaded' : 'Apply config in Configure page',
+        },
+        {
+          id: 'reactivity',
+          label: 'Reactivity Stream',
+          active: hasReactivityLive,
+          hint: hasReactivityLive ? 'WebSocket subscription live' : 'Start monitoring to open stream',
+        },
+        {
+          id: 'incident',
+          label: 'Recovery Path',
+          active: hasRecoveryFlow || hasCriticalDetection,
+          hint: hasRecoveryFlow || hasCriticalDetection
+            ? 'Incident workflow proven'
+            : 'Run simulation or live trigger test',
+        },
+      ] as const,
+    };
+  }, [alerts, contractStatus, latestIncident, monitoringConfig.contractAddress, monitoringConfig.enabled, walletChainId, walletConnected]);
+
+  const roadmapItems = useMemo(() => {
     const phase2Progress = Math.min(
       100,
       55 +
-        (hasActiveMonitor ? 15 : 0) +
-        (hasCriticalDetection ? 15 : 0) +
-        (hasRecoveryFlow ? 15 : 0)
+        (sessionState.hasActiveMonitor ? 15 : 0) +
+        (sessionState.hasCriticalDetection ? 15 : 0) +
+        (sessionState.hasRecoveryFlow ? 15 : 0)
     );
     const phase3Progress = Math.min(
       100,
       30 +
         (walletConnected ? 15 : 0) +
-        (hasReactivityLive ? 30 : 0) +
-        (hasActiveMonitor ? 15 : 0) +
+        (sessionState.hasReactivityLive ? 30 : 0) +
+        (sessionState.hasActiveMonitor ? 15 : 0) +
         (alerts.length >= 8 ? 10 : 0)
     );
     const phase4Progress = Math.min(
       100,
       28 +
-        (isOnSomniaTestnet ? 26 : 0) +
-        (hasActiveMonitor ? 26 : 0) +
-        (hasReactivityLive ? 20 : 0)
+        (sessionState.isOnSomniaTestnet ? 26 : 0) +
+        (sessionState.hasActiveMonitor ? 26 : 0) +
+        (sessionState.hasReactivityLive ? 20 : 0)
     );
     const phase5Progress = Math.min(
       100,
@@ -210,7 +254,7 @@ export default function LandingPage() {
         title: 'Smart Contract Development',
         status: phase2Progress >= 95 ? 'completed' : 'in-progress',
         progress: phase2Progress,
-        done: hasCriticalDetection
+        done: sessionState.hasCriticalDetection
           ? 'Tripwire logic already proving detection path. Focus now on deeper contract-side hardening.'
           : 'Tripwire and automated pause logic are implemented at app level and being hardened for contract finalization.',
       },
@@ -219,7 +263,7 @@ export default function LandingPage() {
         title: 'Backend and Integration',
         status: phase3Progress >= 95 ? 'completed' : 'in-progress',
         progress: phase3Progress,
-        done: hasReactivityLive
+        done: sessionState.hasReactivityLive
           ? 'Live Somnia Reactivity stream and wallet lifecycle integration are active in this running session.'
           : 'Integration layer is ready; activate monitoring to establish live Somnia Reactivity subscription.',
       },
@@ -228,7 +272,7 @@ export default function LandingPage() {
         title: 'Testnet Deployment',
         status: phase4Progress >= 95 ? 'completed' : 'in-progress',
         progress: phase4Progress,
-        done: isOnSomniaTestnet
+        done: sessionState.isOnSomniaTestnet
           ? 'Connected to Somnia Testnet. Remaining work focuses on scenario validation and stress-pass.'
           : 'Deployment is live on Vercel. Connect wallet to Somnia Testnet and run monitors for full validation.',
       },
@@ -240,7 +284,7 @@ export default function LandingPage() {
         done: 'Pending completion of hardening, audit-ready checks, and production launch checklist.',
       },
     ] as const;
-  }, [alerts, contractStatus, latestIncident, monitoringConfig.contractAddress, monitoringConfig.enabled, walletChainId, walletConnected]);
+  }, [alerts.length, sessionState, walletConnected]);
 
   const trustSignals = [
     {
@@ -423,6 +467,48 @@ export default function LandingPage() {
           <h2 className={`text-3xl font-bold mb-12 text-center ${dark ? 'text-white' : 'text-gray-900'}`} data-reveal>
             Development Roadmap
           </h2>
+
+          <div
+            className={`mb-8 rounded-2xl border p-5 ${
+              dark ? 'bg-argus-card/55 border-argus-border' : 'bg-white border-gray-200'
+            }`}
+            data-reveal="up"
+            data-pop
+            data-spotlight
+          >
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className={`text-sm font-semibold tracking-wide uppercase ${dark ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                Live Session Signals
+              </h3>
+              <span className={`text-xs font-semibold ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                {sessionState.liveSignals.filter((signal) => signal.active).length}/{sessionState.liveSignals.length} active
+              </span>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {sessionState.liveSignals.map((signal, i) => (
+                <div
+                  key={signal.id}
+                  data-reveal="zoom"
+                  data-reveal-delay={i * 40}
+                  className={`rounded-xl border p-3 ${
+                    signal.active
+                      ? dark
+                        ? 'bg-cyan-500/10 border-cyan-500/30'
+                        : 'bg-cyan-50 border-cyan-200'
+                      : dark
+                        ? 'bg-slate-900/35 border-slate-700/60'
+                        : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-semibold ${dark ? 'text-gray-200' : 'text-gray-700'}`}>{signal.label}</span>
+                    <span className={`h-2.5 w-2.5 rounded-full ${signal.active ? 'bg-emerald-400' : dark ? 'bg-gray-500' : 'bg-gray-300'}`} />
+                  </div>
+                  <p className={`mt-2 text-[11px] leading-relaxed ${dark ? 'text-gray-400' : 'text-gray-600'}`}>{signal.hint}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="space-y-6">
             {roadmapItems.map((item, i) => (
