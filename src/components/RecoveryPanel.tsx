@@ -24,6 +24,8 @@ export default function RecoveryPanel() {
     blockNumber: '#18,234,567',
     txHash: '0x3a4F8B2c...7E1f9c1E',
   };
+  const savedPercent = 94.8;
+  const lostPercent = Number((100 - savedPercent).toFixed(1));
 
   useEffect(() => {
     if (countdown > 0) {
@@ -157,28 +159,47 @@ export default function RecoveryPanel() {
 
       {/* Savings Visualization */}
       <div className={`rounded-2xl border mb-6 p-6 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={90} data-tilt data-pop="strong" data-spotlight data-tilt-strength={4.6}>
-        <h3 className={`text-sm font-bold mb-4 ${dark ? 'text-white' : 'text-gray-900'}`}>Fund Protection Summary</h3>
-        <div className="relative h-10 rounded-full overflow-hidden bg-gray-800/50 mb-4">
-          <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full flex items-center justify-end pr-3"
-            style={{ width: '94.8%' }}
-          >
-            <span className="text-xs font-bold text-white">94.8% Saved</span>
-          </div>
-          <div
-            className="absolute inset-y-0 right-0 bg-gradient-to-r from-red-500 to-red-400 rounded-r-full flex items-center justify-center"
-            style={{ width: '5.2%' }}
-          >
-          </div>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className={`text-sm font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Fund Protection Summary</h3>
+          <span className={`text-[11px] font-semibold tracking-wide px-2.5 py-1 rounded-full ${dark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>
+            {savedPercent.toFixed(1)}% protected
+          </span>
         </div>
-        <div className="flex justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-emerald-500" />
-            <span className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-600'}`}>Funds Saved: $2,322,550</span>
+
+        <div className={`p-3 rounded-xl border ${dark ? 'border-argus-border/80 bg-argus-dark/50' : 'border-gray-200 bg-gray-50'}`}>
+          <div className={`h-4 rounded-full overflow-hidden flex ${dark ? 'bg-gray-800/70' : 'bg-gray-200'}`}>
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+              style={{ width: `${savedPercent}%` }}
+            />
+            <div
+              className="h-full bg-gradient-to-r from-rose-500 to-red-400"
+              style={{ width: `${lostPercent}%` }}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-red-500" />
-            <span className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-600'}`}>Funds Lost: $127,450</span>
+
+          <div className="grid sm:grid-cols-2 gap-3 mt-3">
+            <div className={`rounded-lg px-3 py-2 border ${dark ? 'border-emerald-500/25 bg-emerald-500/8' : 'border-emerald-200 bg-emerald-50'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <span className={`text-xs font-medium ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Funds Saved</span>
+                </div>
+                <span className="text-xs font-bold text-emerald-400">{savedPercent.toFixed(1)}%</span>
+              </div>
+              <p className={`text-sm font-semibold mt-1 ${dark ? 'text-emerald-300' : 'text-emerald-700'}`}>$2,322,550</p>
+            </div>
+
+            <div className={`rounded-lg px-3 py-2 border ${dark ? 'border-red-500/25 bg-red-500/8' : 'border-red-200 bg-red-50'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <span className={`text-xs font-medium ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Funds Lost</span>
+                </div>
+                <span className="text-xs font-bold text-red-400">{lostPercent.toFixed(1)}%</span>
+              </div>
+              <p className={`text-sm font-semibold mt-1 ${dark ? 'text-red-300' : 'text-red-700'}`}>$127,450</p>
+            </div>
           </div>
         </div>
       </div>
