@@ -10,6 +10,13 @@ const WINDOW_OPTIONS = [
 
 type WindowUnit = (typeof WINDOW_OPTIONS)[number]["value"];
 
+const QUICK_DEMO_CONFIG = {
+  contractAddress: "0x1111111111111111111111111111111111111111",
+  topic0: "0xddf252ad00000000000000000000000000000000000000000000000000000000",
+  burstThreshold: 8,
+  windowSeconds: 12,
+} as const;
+
 export default function Configuration() {
   const { dark } = useTheme();
   const {
@@ -63,6 +70,37 @@ export default function Configuration() {
 
   const selectedTimeLabel = (WINDOW_OPTIONS.find((option) => option.value === timeUnit)?.label ?? timeUnit).toLowerCase();
 
+  const applyMonitoringSetup = (
+    nextConfig: {
+      contractAddress: string;
+      topic0: string;
+      burstThreshold: number;
+      windowSeconds: number;
+    },
+    message: string,
+    jumpToDashboard = false
+  ) => {
+    updateMonitoringConfig({
+      enabled: true,
+      contractAddress: nextConfig.contractAddress,
+      topic0: nextConfig.topic0,
+      burstThreshold: nextConfig.burstThreshold,
+      windowSeconds: nextConfig.windowSeconds,
+    });
+    setContractStatus("safe");
+    setLatestIncident(null);
+    setDeploying(false);
+    setDeployed(true);
+    addAlert({
+      level: "success",
+      channel: "Config",
+      message,
+    });
+    if (jumpToDashboard) {
+      setPage("dashboard");
+    }
+  };
+
   const handleDeploy = () => {
     const normalizedAddress = contractAddress.trim();
     if (!isAddress(normalizedAddress)) {
@@ -84,21 +122,31 @@ export default function Configuration() {
 
     setDeploying(true);
     setTimeout(() => {
-      updateMonitoringConfig({
-        enabled: true,
+      applyMonitoringSetup({
         contractAddress: normalizedAddress,
         topic0: topic0.trim(),
         burstThreshold: eventThreshold,
         windowSeconds,
-      });
-      setDeploying(false);
-      setDeployed(true);
-      addAlert({
-        level: "success",
-        channel: "Config",
-        message: "Tripwire config updated. Live monitoring started via Somnia Reactivity.",
-      });
+      }, "Tripwire config updated. Live monitoring started via Somnia Reactivity.");
     }, 1200);
+  };
+
+  const handleQuickDemoMode = () => {
+    setShowDropdown(false);
+    setDeployed(false);
+    setContractAddress(QUICK_DEMO_CONFIG.contractAddress);
+    setTopic0(QUICK_DEMO_CONFIG.topic0);
+    setEventThreshold(QUICK_DEMO_CONFIG.burstThreshold);
+    setTimeWindow(String(QUICK_DEMO_CONFIG.windowSeconds));
+    setTimeUnit("seconds");
+    setDeploying(true);
+    setTimeout(() => {
+      applyMonitoringSetup(
+        QUICK_DEMO_CONFIG,
+        "Quick Demo Mode applied. Preset tripwire config is live and monitoring is active.",
+        true
+      );
+    }, 650);
   };
 
   const handleCopy = () => {
@@ -129,6 +177,38 @@ export default function Configuration() {
       </div>
 
       <div className="space-y-6">
+        <div
+          className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+            dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"
+          }`}
+          data-reveal
+          data-reveal-delay={20}
+          data-tilt
+          data-pop
+          data-spotlight
+        >
+          <div>
+            <h2 className={`text-sm font-bold uppercase tracking-wider ${dark ? "text-cyan-300" : "text-cyan-700"}`}>
+              Quick Demo Mode
+            </h2>
+            <p className={`text-xs mt-1 ${dark ? "text-gray-400" : "text-gray-600"}`}>
+              1 klik untuk isi preset valid, start monitor, lalu langsung ke Dashboard.
+            </p>
+          </div>
+          <button
+            onClick={handleQuickDemoMode}
+            disabled={deploying}
+            data-shimmer
+            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              deploying
+                ? "bg-cyan-500/20 text-cyan-300 cursor-wait"
+                : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/25"
+            }`}
+          >
+            {deploying ? "Applying Demo Preset..." : "Run Quick Demo Mode"}
+          </button>
+        </div>
+
         <div className={`p-6 rounded-2xl border ${dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"}`} data-reveal data-tilt data-pop data-spotlight data-tilt-strength={5.4}>
           <div className="flex items-center gap-3 mb-4">
             <div className={`pop-icon w-10 h-10 rounded-xl flex items-center justify-center ${dark ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"}`}>
