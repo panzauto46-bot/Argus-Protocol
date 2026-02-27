@@ -292,7 +292,7 @@ html:not(.dark) .app-vignette {
 [data-spotlight] {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
 }
 
 [data-spotlight]::before {
