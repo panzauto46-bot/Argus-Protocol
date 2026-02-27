@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPublicClient, isAddress, webSocket } from "viem";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { TrendingUp, Activity, Clock, Wallet, ArrowUpRight, ArrowDownRight, Eye, Wifi, WifiOff } from "lucide-react";
@@ -17,6 +17,7 @@ interface StreamEvent {
   wallet: string;
   topic0: string;
   dataPreview: string;
+  source: "live" | "demo";
   status: "normal" | "suspicious" | "blocked";
 }
 
@@ -32,6 +33,7 @@ function extractAddressFromTopic(topic?: string): string | null {
 export default function Dashboard() {
   const { dark } = useTheme();
   const {
+    setPage,
     contractStatus,
     setContractStatus,
     monitoringConfig,
@@ -47,13 +49,144 @@ export default function Dashboard() {
   const lastWarningAtRef = useRef(0);
   const lastCriticalAtRef = useRef(0);
   const contractStatusRef = useRef(contractStatus);
+  const demoBurstTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [demoRunning, setDemoRunning] = useState(false);
 
   const canMonitor = monitoringConfig.enabled && isAddress(monitoringConfig.contractAddress);
   const warningThreshold = Math.max(2, Math.ceil(monitoringConfig.burstThreshold * 0.6));
 
+  const stopBurstDemo = useCallback(() => {
+    if (!demoBurstTimerRef.current) return;
+    clearInterval(demoBurstTimerRef.current);
+    demoBurstTimerRef.current = null;
+    setDemoRunning(false);
+  }, []);
+
+  const recordStreamEvent = useCallback((next: {
+    wallet?: string;
+    topic0?: string;
+    dataHex?: string;
+    source?: StreamEvent["source"];
+  }) => {
+    const now = Date.now();
+    const source = next.source ?? "live";
+    const topic0 = next.topic0 ?? (monitoringConfig.topic0 || "0x");
+    const dataHex = next.dataHex ?? "0x";
+    const wallet = next.wallet ?? monitoringConfig.contractAddress;
+    const cutoff = now - monitoringConfig.windowSeconds * 1000;
+
+    eventTimestampsRef.current = [...eventTimestampsRef.current, now].filter((ts) => ts >= cutoff);
+    const burstCount = eventTimestampsRef.current.length;
+
+    const status: StreamEvent["status"] =
+      burstCount >= monitoringConfig.burstThreshold
+        ? "blocked"
+        : burstCount >= warningThreshold
+          ? "suspicious"
+          : "normal";
+
+    setTransactions((prev) => [
+      {
+        id: now + Math.floor(Math.random() * 1000),
+        time: new Date(now).toLocaleTimeString("en-US", { hour12: false }),
+        wallet: shortenAddress(wallet),
+        topic0: topic0.length > 14 ? `${topic0.slice(0, 14)}...` : topic0,
+        dataPreview: dataHex.length > 18 ? `${dataHex.slice(0, 18)}...` : dataHex,
+        source,
+        status,
+      },
+      ...prev.slice(0, 24),
+    ]);
+
+    if (status === "blocked") {
+      setContractStatus("triggered");
+      if (now - lastCriticalAtRef.current > 6000) {
+        lastCriticalAtRef.current = now;
+        setLatestIncident({
+          detectedAt: new Date(now).toISOString(),
+          contractAddress: monitoringConfig.contractAddress,
+          topic0: monitoringConfig.topic0 || "any",
+          eventCount: burstCount,
+          windowSeconds: monitoringConfig.windowSeconds,
+        });
+        addAlert({
+          level: "critical",
+          channel: source === "demo" ? "Demo" : "Reactivity",
+          message: `${source === "demo" ? "[Demo] " : ""}Tripwire triggered: ${burstCount} events/${monitoringConfig.windowSeconds}s on ${shortenAddress(monitoringConfig.contractAddress)}.`,
+        });
+      }
+    } else if (status === "suspicious" && contractStatusRef.current !== "triggered") {
+      setContractStatus("monitoring");
+      if (now - lastWarningAtRef.current > 8000) {
+        lastWarningAtRef.current = now;
+        addAlert({
+          level: "warning",
+          channel: source === "demo" ? "Demo" : "Reactivity",
+          message: `${source === "demo" ? "[Demo] " : ""}Burst detected: ${burstCount}/${monitoringConfig.burstThreshold} events in active window.`,
+        });
+      }
+    } else if (contractStatusRef.current !== "triggered") {
+      setContractStatus("safe");
+    }
+  }, [
+    addAlert,
+    monitoringConfig.burstThreshold,
+    monitoringConfig.contractAddress,
+    monitoringConfig.topic0,
+    monitoringConfig.windowSeconds,
+    setContractStatus,
+    setLatestIncident,
+    warningThreshold,
+  ]);
+
+  const injectDemoEvent = useCallback(() => {
+    const demoWallet = `0x${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16).padStart(40, "0").slice(-40)}`;
+    const demoTopic =
+      monitoringConfig.topic0 ||
+      "0xddf252ad00000000000000000000000000000000000000000000000000000000";
+    const demoData = `0x${Date.now().toString(16)}${Math.floor(Math.random() * 0xfffff).toString(16).padStart(5, "0")}`;
+    recordStreamEvent({
+      wallet: demoWallet,
+      topic0: demoTopic,
+      dataHex: demoData,
+      source: "demo",
+    });
+  }, [monitoringConfig.topic0, recordStreamEvent]);
+
+  const runBurstDemo = useCallback(() => {
+    if (demoRunning || contractStatusRef.current === "triggered") return;
+    const target = Math.max(monitoringConfig.burstThreshold + 1, warningThreshold + 2);
+    let emitted = 0;
+    setDemoRunning(true);
+    addAlert({
+      level: "info",
+      channel: "Demo",
+      message: `Burst demo started. Injecting ${target} synthetic events into active window.`,
+    });
+
+    demoBurstTimerRef.current = setInterval(() => {
+      emitted += 1;
+      injectDemoEvent();
+      if (emitted >= target) {
+        stopBurstDemo();
+      }
+    }, 220);
+  }, [addAlert, demoRunning, injectDemoEvent, monitoringConfig.burstThreshold, stopBurstDemo, warningThreshold]);
+
   useEffect(() => {
     contractStatusRef.current = contractStatus;
   }, [contractStatus]);
+
+  useEffect(() => {
+    if (contractStatus !== "triggered") return;
+    stopBurstDemo();
+  }, [contractStatus, stopBurstDemo]);
+
+  useEffect(() => {
+    return () => {
+      stopBurstDemo();
+    };
+  }, [stopBurstDemo]);
 
   useEffect(() => {
     const now = Date.now();
@@ -188,61 +321,7 @@ export default function Dashboard() {
               extractAddressFromTopic(topics[1]) ??
               extractAddressFromTopic(topics[2]) ??
               monitoringConfig.contractAddress;
-            const now = Date.now();
-            const cutoff = now - monitoringConfig.windowSeconds * 1000;
-
-            eventTimestampsRef.current = [...eventTimestampsRef.current, now].filter((ts) => ts >= cutoff);
-            const burstCount = eventTimestampsRef.current.length;
-
-            const status: StreamEvent["status"] =
-              burstCount >= monitoringConfig.burstThreshold
-                ? "blocked"
-                : burstCount >= warningThreshold
-                  ? "suspicious"
-                  : "normal";
-
-            setTransactions((prev) => [
-              {
-                id: now,
-                time: new Date(now).toLocaleTimeString("en-US", { hour12: false }),
-                wallet: shortenAddress(wallet),
-                topic0: topic0.slice(0, 14) + "...",
-                dataPreview: dataHex.length > 18 ? `${dataHex.slice(0, 18)}...` : dataHex,
-                status,
-              },
-              ...prev.slice(0, 24),
-            ]);
-
-            if (status === "blocked") {
-              setContractStatus("triggered");
-              if (now - lastCriticalAtRef.current > 6000) {
-                lastCriticalAtRef.current = now;
-                setLatestIncident({
-                  detectedAt: new Date(now).toISOString(),
-                  contractAddress: monitoringConfig.contractAddress,
-                  topic0: monitoringConfig.topic0 || "any",
-                  eventCount: burstCount,
-                  windowSeconds: monitoringConfig.windowSeconds,
-                });
-                addAlert({
-                  level: "critical",
-                  channel: "Reactivity",
-                  message: `Tripwire triggered: ${burstCount} events/${monitoringConfig.windowSeconds}s on ${shortenAddress(monitoringConfig.contractAddress)}.`,
-                });
-              }
-            } else if (status === "suspicious" && contractStatusRef.current !== "triggered") {
-              setContractStatus("monitoring");
-              if (now - lastWarningAtRef.current > 8000) {
-                lastWarningAtRef.current = now;
-                addAlert({
-                  level: "warning",
-                  channel: "Reactivity",
-                  message: `Burst detected: ${burstCount}/${monitoringConfig.burstThreshold} events in active window.`,
-                });
-              }
-            } else if (contractStatusRef.current !== "triggered") {
-              setContractStatus("safe");
-            }
+            recordStreamEvent({ wallet, topic0, dataHex, source: "live" });
           },
           onError: (error) => {
             if (closed) return;
@@ -298,6 +377,7 @@ export default function Dashboard() {
     monitoringConfig.windowSeconds,
     setContractStatus,
     setLatestIncident,
+    recordStreamEvent,
     warningThreshold,
   ]);
 
@@ -383,6 +463,96 @@ export default function Dashboard() {
               <div className={`text-xs ${dark ? "text-gray-400" : "text-gray-500"}`}>{status.desc}</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div
+        className={`p-5 rounded-2xl border mb-8 ${
+          dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"
+        }`}
+        data-reveal
+        data-reveal-delay={40}
+        data-tilt
+        data-pop
+        data-spotlight
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h2 className={`text-sm font-bold uppercase tracking-wider ${dark ? "text-cyan-300" : "text-cyan-700"}`}>
+              Guided Demo Controls
+            </h2>
+            <p className={`text-xs mt-1 ${dark ? "text-gray-400" : "text-gray-600"}`}>
+              Jalankan simulasi reactivity end-to-end: inject events, trigger burst, lalu buka recovery panel.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { label: "1. Stream", done: streamState === "live" },
+              { label: "2. Burst", done: contractStatus === "monitoring" || contractStatus === "triggered" },
+              { label: "3. Triggered", done: contractStatus === "triggered" },
+            ].map((step) => (
+              <span
+                key={step.label}
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                  step.done
+                    ? dark
+                      ? "border-emerald-500/35 bg-emerald-500/15 text-emerald-300"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : dark
+                      ? "border-gray-700 bg-gray-800/70 text-gray-400"
+                      : "border-gray-200 bg-gray-50 text-gray-500"
+                }`}
+              >
+                {step.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 grid sm:grid-cols-3 gap-2.5">
+          <button
+            onClick={injectDemoEvent}
+            disabled={demoRunning}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors ${
+              demoRunning
+                ? dark
+                  ? "border-gray-700 text-gray-500 bg-gray-800/70 cursor-not-allowed"
+                  : "border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed"
+                : dark
+                  ? "border-cyan-500/30 text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20"
+                  : "border-cyan-200 text-cyan-700 bg-cyan-50 hover:bg-cyan-100"
+            }`}
+          >
+            Inject Safe Event
+          </button>
+          <button
+            onClick={runBurstDemo}
+            disabled={demoRunning || contractStatus === "triggered"}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors ${
+              demoRunning || contractStatus === "triggered"
+                ? dark
+                  ? "border-gray-700 text-gray-500 bg-gray-800/70 cursor-not-allowed"
+                  : "border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed"
+                : dark
+                  ? "border-yellow-500/30 text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20"
+                  : "border-yellow-200 text-yellow-700 bg-yellow-50 hover:bg-yellow-100"
+            }`}
+          >
+            {demoRunning ? "Injecting Burst..." : "Simulate Attack Burst"}
+          </button>
+          <button
+            onClick={() => setPage("recovery")}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors ${
+              contractStatus === "triggered"
+                ? dark
+                  ? "border-red-500/35 text-red-300 bg-red-500/10 hover:bg-red-500/20"
+                  : "border-red-200 text-red-700 bg-red-50 hover:bg-red-100"
+                : dark
+                  ? "border-gray-700 text-gray-300 hover:bg-white/5"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Open Recovery Panel
+          </button>
         </div>
       </div>
 
@@ -510,6 +680,7 @@ export default function Dashboard() {
                 <th className="text-left px-6 py-3 font-medium">Emitter/Actor</th>
                 <th className="text-left px-6 py-3 font-medium">Topic0</th>
                 <th className="text-left px-6 py-3 font-medium">Data</th>
+                <th className="text-left px-6 py-3 font-medium">Source</th>
                 <th className="text-left px-6 py-3 font-medium">Status</th>
               </tr>
             </thead>
@@ -533,6 +704,15 @@ export default function Dashboard() {
                   <td className="px-6 py-4"><span className="text-xs font-mono text-cyan-400">{tx.topic0}</span></td>
                   <td className="px-6 py-4"><span className={`text-xs font-mono ${dark ? "text-gray-400" : "text-gray-600"}`}>{tx.dataPreview}</span></td>
                   <td className="px-6 py-4">
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${
+                      tx.source === "live"
+                        ? dark ? "bg-cyan-500/15 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+                        : dark ? "bg-purple-500/15 text-purple-300" : "bg-purple-50 text-purple-700"
+                    }`}>
+                      {tx.source}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
                       tx.status === "normal"
                         ? dark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"
@@ -547,7 +727,7 @@ export default function Dashboard() {
               ))}
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={5} className={`px-6 py-8 text-center text-sm ${dark ? "text-gray-500" : "text-gray-400"}`}>
+                  <td colSpan={6} className={`px-6 py-8 text-center text-sm ${dark ? "text-gray-500" : "text-gray-400"}`}>
                     Waiting for live events from Somnia Reactivity subscription...
                   </td>
                 </tr>
