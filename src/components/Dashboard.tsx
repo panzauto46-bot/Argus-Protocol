@@ -30,6 +30,20 @@ function extractAddressFromTopic(topic?: string): string | null {
   return `0x${clean.slice(-40)}`;
 }
 
+function buildMetricSeed(): DataPoint[] {
+  const now = Date.now();
+  const seed: DataPoint[] = [];
+  for (let i = 30; i >= 0; i -= 1) {
+    const d = new Date(now - i * 1000);
+    seed.push({
+      time: d.toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit" }),
+      events: 0,
+      timestamp: d.getTime(),
+    });
+  }
+  return seed;
+}
+
 export default function Dashboard() {
   const { dark } = useTheme();
   const {
@@ -173,6 +187,22 @@ export default function Dashboard() {
     }, 220);
   }, [addAlert, demoRunning, injectDemoEvent, monitoringConfig.burstThreshold, stopBurstDemo, warningThreshold]);
 
+  const resetDemoState = useCallback(() => {
+    stopBurstDemo();
+    eventTimestampsRef.current = [];
+    setTransactions([]);
+    setMetricData(buildMetricSeed());
+    lastWarningAtRef.current = 0;
+    lastCriticalAtRef.current = 0;
+    setLatestIncident(null);
+    setContractStatus("safe");
+    addAlert({
+      level: "info",
+      channel: "Demo",
+      message: "Demo state reset. Activity log and rolling counters cleared.",
+    });
+  }, [addAlert, setContractStatus, setLatestIncident, stopBurstDemo]);
+
   useEffect(() => {
     contractStatusRef.current = contractStatus;
   }, [contractStatus]);
@@ -189,17 +219,7 @@ export default function Dashboard() {
   }, [stopBurstDemo]);
 
   useEffect(() => {
-    const now = Date.now();
-    const seed: DataPoint[] = [];
-    for (let i = 30; i >= 0; i -= 1) {
-      const d = new Date(now - i * 1000);
-      seed.push({
-        time: d.toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit" }),
-        events: 0,
-        timestamp: d.getTime(),
-      });
-    }
-    setMetricData(seed);
+    setMetricData(buildMetricSeed());
   }, []);
 
   useEffect(() => {
@@ -508,7 +528,7 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="mt-4 grid sm:grid-cols-3 gap-2.5">
+        <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           <button
             onClick={injectDemoEvent}
             disabled={demoRunning}
@@ -552,6 +572,16 @@ export default function Dashboard() {
             }`}
           >
             Open Recovery Panel
+          </button>
+          <button
+            onClick={resetDemoState}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold border transition-colors ${
+              dark
+                ? "border-slate-600 text-slate-200 bg-slate-900/50 hover:bg-slate-800/70"
+                : "border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100"
+            }`}
+          >
+            Reset Demo State
           </button>
         </div>
       </div>
