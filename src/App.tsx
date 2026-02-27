@@ -246,7 +246,11 @@ export default function App() {
   }, [dark]);
 
   useEffect(() => {
-    window.localStorage.setItem(MONITORING_CONFIG_STORAGE_KEY, JSON.stringify(monitoringConfig));
+    try {
+      window.localStorage.setItem(MONITORING_CONFIG_STORAGE_KEY, JSON.stringify(monitoringConfig));
+    } catch {
+      // Ignore persistence failures (private mode, storage disabled, quota, etc).
+    }
   }, [monitoringConfig]);
 
   useEffect(() => {

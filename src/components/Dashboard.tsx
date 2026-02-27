@@ -99,8 +99,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!canMonitor) {
+      eventTimestampsRef.current = [];
+      setTransactions([]);
       setStreamState("idle");
       setStreamError(null);
+      if (contractStatusRef.current !== "triggered") {
+        setContractStatus("safe");
+      }
       return;
     }
 
@@ -116,11 +121,54 @@ export default function Dashboard() {
     });
 
     let closed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempt = 0;
+    let lastConnectionAlertAt = 0;
     let unsubscribeFn: (() => Promise<unknown>) | null = null;
 
-    const connect = async () => {
+    const emitConnectionAlert = (level: "info" | "warning", message: string) => {
+      const now = Date.now();
+      if (now - lastConnectionAlertAt < 8000) return;
+      lastConnectionAlertAt = now;
+      addAlert({
+        level,
+        channel: "Reactivity",
+        message,
+      });
+    };
+
+    const clearSubscription = async () => {
+      if (!unsubscribeFn) return;
+      const currentUnsubscribe = unsubscribeFn;
+      unsubscribeFn = null;
       try {
+        await currentUnsubscribe();
+      } catch {
+        // Ignore unsubscribe errors while reconnecting/teardown.
+      }
+    };
+
+    const scheduleReconnect = (reason: string) => {
+      if (closed) return;
+      reconnectAttempt += 1;
+      const delay = Math.min(15000, 1000 * (2 ** Math.max(0, reconnectAttempt - 1)));
+      setStreamState("connecting");
+      setStreamError(reason);
+      emitConnectionAlert("warning", `Stream interrupted: ${reason}. Reconnecting in ${Math.round(delay / 1000)}s.`);
+
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        void connect();
+      }, delay);
+    };
+
+    const connect = async () => {
+      if (closed) return;
+      try {
+        await clearSubscription();
         const { SDK } = await import("@somnia-chain/reactivity");
+        if (closed) return;
         setStreamState("connecting");
         setStreamError(null);
 
@@ -198,31 +246,39 @@ export default function Dashboard() {
           },
           onError: (error) => {
             if (closed) return;
+            const message = error?.message || "WebSocket subscription error";
             setStreamState("error");
-            setStreamError(error.message);
+            setStreamError(message);
+            scheduleReconnect(message);
           },
         });
+
+        if (closed) {
+          if (!(result instanceof Error)) {
+            try {
+              await result.unsubscribe();
+            } catch {
+              // Ignore cleanup error on race conditions.
+            }
+          }
+          return;
+        }
 
         if (result instanceof Error) {
           throw result;
         }
 
         unsubscribeFn = result.unsubscribe;
+        reconnectAttempt = 0;
         setStreamState("live");
-        addAlert({
-          level: "info",
-          channel: "Reactivity",
-          message: `Subscription live for ${shortenAddress(monitoringConfig.contractAddress)}.`,
-        });
+        setStreamError(null);
+        emitConnectionAlert("info", `Subscription live for ${shortenAddress(monitoringConfig.contractAddress)}.`);
       } catch (error) {
+        if (closed) return;
         const message = error instanceof Error ? error.message : "Failed to initialize subscription";
         setStreamState("error");
         setStreamError(message);
-        addAlert({
-          level: "warning",
-          channel: "Reactivity",
-          message: `Subscription error: ${message}`,
-        });
+        scheduleReconnect(message);
       }
     };
 
@@ -230,9 +286,8 @@ export default function Dashboard() {
 
     return () => {
       closed = true;
-      if (unsubscribeFn) {
-        void unsubscribeFn();
-      }
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      void clearSubscription();
     };
   }, [
     addAlert,
