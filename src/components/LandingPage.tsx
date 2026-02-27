@@ -151,11 +151,41 @@ export default function LandingPage() {
   ];
 
   const roadmapItems = [
-    { phase: 'Phase 1', title: 'UI/UX Design', status: 'completed', desc: 'Full visual design of all pages including Dashboard, Configuration, Alerts, and Recovery panels.' },
-    { phase: 'Phase 2', title: 'Smart Contract Development', status: 'in-progress', desc: 'Sentinel Engine core logic, tripwire mechanisms, and automated pause functionality on Somnia.' },
-    { phase: 'Phase 3', title: 'Backend and Integration', status: 'upcoming', desc: 'Webhook integrations for Telegram/Discord, real-time data indexing, and API endpoints.' },
-    { phase: 'Phase 4', title: 'Testnet Deployment', status: 'upcoming', desc: 'Deployment on Somnia testnet with simulated attack scenarios and stress testing.' },
-    { phase: 'Phase 5', title: 'Mainnet Launch', status: 'upcoming', desc: 'Production deployment, security audit, and public launch with initial partner dApps.' },
+    {
+      phase: 'Phase 1',
+      title: 'UI/UX Design',
+      status: 'completed',
+      progress: 100,
+      done: 'Complete visual system delivered for Landing, Dashboard, Configure, Alerts, and Recovery.',
+    },
+    {
+      phase: 'Phase 2',
+      title: 'Smart Contract Development',
+      status: 'in-progress',
+      progress: 68,
+      done: 'Tripwire and automated pause logic in progress with threshold model under active implementation.',
+    },
+    {
+      phase: 'Phase 3',
+      title: 'Backend and Integration',
+      status: 'in-progress',
+      progress: 72,
+      done: 'Live Somnia Reactivity stream, wallet lifecycle handling, and incident feed integration are operational.',
+    },
+    {
+      phase: 'Phase 4',
+      title: 'Testnet Deployment',
+      status: 'in-progress',
+      progress: 64,
+      done: 'Public Vercel deployment is live; final attack scenario validation and stability QA are in progress.',
+    },
+    {
+      phase: 'Phase 5',
+      title: 'Mainnet Launch',
+      status: 'upcoming',
+      progress: 8,
+      done: 'Pending security hardening completion, audit sign-off, and production rollout checklist.',
+    },
   ];
 
   const trustSignals = [
@@ -384,7 +414,32 @@ export default function LandingPage() {
                       {item.status === 'in-progress' ? 'In Progress' : item.status}
                     </span>
                   </div>
-                  <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-600'}`}>{item.desc}</p>
+                  <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-600'}`}>{item.done}</p>
+                  <div className="mt-3">
+                    <div className={`h-2 rounded-full overflow-hidden ${dark ? 'bg-gray-800/70' : 'bg-gray-200'}`}>
+                      <div
+                        className={`h-full rounded-full ${
+                          item.status === 'completed'
+                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                            : item.status === 'in-progress'
+                              ? 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                              : 'bg-gradient-to-r from-slate-500 to-slate-400'
+                        }`}
+                        style={{ width: `${item.progress}%` }}
+                      />
+                    </div>
+                    <div className={`mt-1 text-[11px] font-semibold ${
+                      item.status === 'completed'
+                        ? 'text-emerald-400'
+                        : item.status === 'in-progress'
+                          ? 'text-cyan-400'
+                          : dark
+                            ? 'text-gray-500'
+                            : 'text-gray-400'
+                    }`}>
+                      Progress: {item.progress}%
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
