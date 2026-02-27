@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { SDK } from "@somnia-chain/reactivity";
+import { useEffect, useRef, useState } from "react";
 import { createPublicClient, isAddress, webSocket } from "viem";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { TrendingUp, Activity, Clock, Wallet, ArrowUpRight, ArrowDownRight, Eye, Wifi, WifiOff } from "lucide-react";
@@ -105,20 +104,27 @@ export default function Dashboard() {
       return;
     }
 
+    eventTimestampsRef.current = [];
+    setTransactions([]);
+    if (contractStatusRef.current !== "triggered") {
+      setContractStatus("safe");
+    }
+
     const publicClient = createPublicClient({
       chain: somniaTestnet,
       transport: webSocket(SOMNIA_TESTNET_RPC_WS),
     });
-    const sdk = new SDK({ public: publicClient });
 
     let closed = false;
     let unsubscribeFn: (() => Promise<unknown>) | null = null;
 
     const connect = async () => {
       try {
+        const { SDK } = await import("@somnia-chain/reactivity");
         setStreamState("connecting");
         setStreamError(null);
 
+        const sdk = new SDK({ public: publicClient });
         const result = await sdk.subscribe({
           ethCalls: [],
           context: "topic0",

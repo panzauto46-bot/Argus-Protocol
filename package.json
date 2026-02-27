@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@somnia-chain/reactivity": "^0.1.10",
+    "buffer": "^6.0.3",
     "clsx": "2.1.1",
     "ethers": "^6.16.0",
     "lucide-react": "^0.575.0",
