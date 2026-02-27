@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTheme, useApp } from '../App';
 import { Shield, Zap, Eye, Lock, Bell, RefreshCw, ArrowRight, ShieldCheck, Gauge, Fingerprint } from 'lucide-react';
+import { SOMNIA_TESTNET_CHAIN_ID } from '../lib/somnia';
 
 function NetworkCube() {
   return (
@@ -131,7 +132,16 @@ function StatCounter({ value, label, delay = 0 }: { value: string; label: string
 
 export default function LandingPage() {
   const { dark } = useTheme();
-  const { setPage, connectWallet } = useApp();
+  const {
+    setPage,
+    connectWallet,
+    walletConnected,
+    walletChainId,
+    monitoringConfig,
+    alerts,
+    latestIncident,
+    contractStatus,
+  } = useApp();
   const [tvl, setTvl] = useState(247.3);
 
   useEffect(() => {
@@ -150,43 +160,87 @@ export default function LandingPage() {
     { icon: <Shield size={24} />, title: 'Zero Trust', desc: 'No external servers or admin intervention required. Fully on-chain security.' },
   ];
 
-  const roadmapItems = [
-    {
-      phase: 'Phase 1',
-      title: 'UI/UX Design',
-      status: 'completed',
-      progress: 100,
-      done: 'Complete visual system delivered for Landing, Dashboard, Configure, Alerts, and Recovery.',
-    },
-    {
-      phase: 'Phase 2',
-      title: 'Smart Contract Development',
-      status: 'in-progress',
-      progress: 68,
-      done: 'Tripwire and automated pause logic in progress with threshold model under active implementation.',
-    },
-    {
-      phase: 'Phase 3',
-      title: 'Backend and Integration',
-      status: 'in-progress',
-      progress: 72,
-      done: 'Live Somnia Reactivity stream, wallet lifecycle handling, and incident feed integration are operational.',
-    },
-    {
-      phase: 'Phase 4',
-      title: 'Testnet Deployment',
-      status: 'in-progress',
-      progress: 64,
-      done: 'Public Vercel deployment is live; final attack scenario validation and stability QA are in progress.',
-    },
-    {
-      phase: 'Phase 5',
-      title: 'Mainnet Launch',
-      status: 'upcoming',
-      progress: 8,
-      done: 'Pending security hardening completion, audit sign-off, and production rollout checklist.',
-    },
-  ];
+  const roadmapItems = useMemo(() => {
+    const isOnSomniaTestnet = walletConnected && walletChainId === SOMNIA_TESTNET_CHAIN_ID;
+    const hasActiveMonitor = monitoringConfig.enabled && monitoringConfig.contractAddress.length > 0;
+    const hasReactivityLive = alerts.some(
+      (alert) => alert.channel === 'Reactivity' && alert.message.toLowerCase().includes('subscription live')
+    );
+    const hasRecoveryFlow = !!latestIncident || alerts.some((alert) => alert.channel === 'Recovery');
+    const hasCriticalDetection =
+      contractStatus === 'triggered' || alerts.some((alert) => alert.level === 'critical' && alert.channel === 'Reactivity');
+
+    const phase2Progress = Math.min(
+      100,
+      55 +
+        (hasActiveMonitor ? 15 : 0) +
+        (hasCriticalDetection ? 15 : 0) +
+        (hasRecoveryFlow ? 15 : 0)
+    );
+    const phase3Progress = Math.min(
+      100,
+      30 +
+        (walletConnected ? 15 : 0) +
+        (hasReactivityLive ? 30 : 0) +
+        (hasActiveMonitor ? 15 : 0) +
+        (alerts.length >= 8 ? 10 : 0)
+    );
+    const phase4Progress = Math.min(
+      100,
+      28 +
+        (isOnSomniaTestnet ? 26 : 0) +
+        (hasActiveMonitor ? 26 : 0) +
+        (hasReactivityLive ? 20 : 0)
+    );
+    const phase5Progress = Math.min(
+      100,
+      8 + Math.floor((phase2Progress + phase3Progress + phase4Progress) / 42)
+    );
+
+    return [
+      {
+        phase: 'Phase 1',
+        title: 'UI/UX Design',
+        status: 'completed',
+        progress: 100,
+        done: 'Complete visual system delivered for Landing, Dashboard, Configure, Alerts, and Recovery.',
+      },
+      {
+        phase: 'Phase 2',
+        title: 'Smart Contract Development',
+        status: phase2Progress >= 95 ? 'completed' : 'in-progress',
+        progress: phase2Progress,
+        done: hasCriticalDetection
+          ? 'Tripwire logic already proving detection path. Focus now on deeper contract-side hardening.'
+          : 'Tripwire and automated pause logic are implemented at app level and being hardened for contract finalization.',
+      },
+      {
+        phase: 'Phase 3',
+        title: 'Backend and Integration',
+        status: phase3Progress >= 95 ? 'completed' : 'in-progress',
+        progress: phase3Progress,
+        done: hasReactivityLive
+          ? 'Live Somnia Reactivity stream and wallet lifecycle integration are active in this running session.'
+          : 'Integration layer is ready; activate monitoring to establish live Somnia Reactivity subscription.',
+      },
+      {
+        phase: 'Phase 4',
+        title: 'Testnet Deployment',
+        status: phase4Progress >= 95 ? 'completed' : 'in-progress',
+        progress: phase4Progress,
+        done: isOnSomniaTestnet
+          ? 'Connected to Somnia Testnet. Remaining work focuses on scenario validation and stress-pass.'
+          : 'Deployment is live on Vercel. Connect wallet to Somnia Testnet and run monitors for full validation.',
+      },
+      {
+        phase: 'Phase 5',
+        title: 'Mainnet Launch',
+        status: 'upcoming',
+        progress: phase5Progress,
+        done: 'Pending completion of hardening, audit-ready checks, and production launch checklist.',
+      },
+    ] as const;
+  }, [alerts, contractStatus, latestIncident, monitoringConfig.contractAddress, monitoringConfig.enabled, walletChainId, walletConnected]);
 
   const trustSignals = [
     {
