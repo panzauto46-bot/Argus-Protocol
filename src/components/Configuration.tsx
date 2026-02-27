@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isAddress } from "viem";
 import { useTheme, useApp } from "../App";
 import { Shield, Settings, AlertTriangle, Check, Copy, ChevronDown, Zap, Info } from "lucide-react";
@@ -12,7 +12,14 @@ type WindowUnit = (typeof WINDOW_OPTIONS)[number]["value"];
 
 export default function Configuration() {
   const { dark } = useTheme();
-  const { setPage, monitoringConfig, updateMonitoringConfig, addAlert } = useApp();
+  const {
+    setPage,
+    monitoringConfig,
+    updateMonitoringConfig,
+    addAlert,
+    setContractStatus,
+    setLatestIncident,
+  } = useApp();
   const [contractAddress, setContractAddress] = useState(monitoringConfig.contractAddress);
   const [topic0, setTopic0] = useState(monitoringConfig.topic0);
   const [eventThreshold, setEventThreshold] = useState(monitoringConfig.burstThreshold);
@@ -22,6 +29,18 @@ export default function Configuration() {
   const [deployed, setDeployed] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setContractAddress(monitoringConfig.contractAddress);
+    setTopic0(monitoringConfig.topic0);
+    setEventThreshold(monitoringConfig.burstThreshold);
+    setTimeWindow(String(Math.max(1, monitoringConfig.windowSeconds)));
+  }, [
+    monitoringConfig.burstThreshold,
+    monitoringConfig.contractAddress,
+    monitoringConfig.topic0,
+    monitoringConfig.windowSeconds,
+  ]);
 
   const topicIsValid = useMemo(() => {
     const clean = topic0.trim();
@@ -86,6 +105,18 @@ export default function Configuration() {
     navigator.clipboard.writeText(contractAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleStopMonitoring = () => {
+    updateMonitoringConfig({ enabled: false });
+    setDeployed(false);
+    setContractStatus("safe");
+    setLatestIncident(null);
+    addAlert({
+      level: "info",
+      channel: "Config",
+      message: "Monitoring stopped. Reactivity subscription will be closed.",
+    });
   };
 
   return (
@@ -286,41 +317,58 @@ export default function Configuration() {
           </p>
         </div>
 
-        <button
-          onClick={handleDeploy}
-          disabled={!contractAddress || deploying}
-          data-reveal
-          data-reveal-delay={200}
-          data-shimmer
-          className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
-            deployed
-              ? "bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/30"
-              : !contractAddress
+        <div className="grid sm:grid-cols-2 gap-3">
+          <button
+            onClick={handleDeploy}
+            disabled={!contractAddress || deploying}
+            data-reveal
+            data-reveal-delay={200}
+            data-shimmer
+            className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
+              deployed
+                ? "bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/30"
+                : !contractAddress
+                  ? dark
+                    ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : deploying
+                    ? "bg-cyan-500/20 text-cyan-400 cursor-wait"
+                    : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
+            }`}
+          >
+            {deployed ? (
+              <>
+                <Check size={24} />
+                Monitoring Config Applied
+              </>
+            ) : deploying ? (
+              <>
+                <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                Applying Config...
+              </>
+            ) : (
+              <>
+                <Shield size={24} />
+                Apply & Start Monitoring
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleStopMonitoring}
+            disabled={!monitoringConfig.enabled}
+            className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all border ${
+              !monitoringConfig.enabled
                 ? dark
-                  ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : deploying
-                  ? "bg-cyan-500/20 text-cyan-400 cursor-wait"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
-          }`}
-        >
-          {deployed ? (
-            <>
-              <Check size={24} />
-              Monitoring Config Applied
-            </>
-          ) : deploying ? (
-            <>
-              <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-              Applying Config...
-            </>
-          ) : (
-            <>
-              <Shield size={24} />
-              Apply & Start Monitoring
-            </>
-          )}
-        </button>
+                  ? "bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed"
+                  : "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
+                : dark
+                  ? "bg-red-500/10 text-red-300 border-red-500/30 hover:bg-red-500/20"
+                  : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+            }`}
+          >
+            Stop Monitoring
+          </button>
+        </div>
 
         {deployed && (
           <div className={`p-4 rounded-xl text-center ${dark ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-emerald-50 border border-emerald-200"}`} data-reveal data-spotlight>

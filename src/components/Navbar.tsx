@@ -14,6 +14,7 @@ export default function Navbar() {
     walletAddress,
     walletBusy,
     walletChainId,
+    walletError,
     contractStatus,
   } = useApp();
 
@@ -108,9 +109,13 @@ export default function Navbar() {
                   {shortenAddress(walletAddress)}
                 </span>
                 {wrongNetwork && (
-                  <span className="text-[10px] font-semibold px-2 py-1 rounded-md bg-red-500/15 text-red-400 border border-red-500/30">
+                  <button
+                    onClick={() => void connectWallet()}
+                    className="text-[10px] font-semibold px-2 py-1 rounded-md bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25"
+                    title="Switch to Somnia Testnet"
+                  >
                     Wrong Network
-                  </span>
+                  </button>
                 )}
                 <button
                   onClick={() => {
@@ -131,6 +136,11 @@ export default function Navbar() {
               >
                 {walletBusy ? "Connecting..." : "Connect Wallet"}
               </button>
+            )}
+            {walletError && (
+              <span className="hidden lg:inline-block text-[10px] text-red-400 max-w-[180px] truncate" title={walletError}>
+                {walletError}
+              </span>
             )}
           </div>
         </div>

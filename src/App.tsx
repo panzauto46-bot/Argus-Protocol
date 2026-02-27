@@ -9,6 +9,7 @@ import Navbar from "./components/Navbar";
 import NeuralBackground from "./components/NeuralBackground";
 import useMotionEffects from "./hooks/useMotionEffects";
 import {
+  SOMNIA_TESTNET_CHAIN_ID,
   SOMNIA_TESTNET_CHAIN_HEX,
   SOMNIA_TESTNET_EXPLORER,
   SOMNIA_TESTNET_RPC_HTTP,
@@ -190,7 +191,7 @@ export default function App() {
           params: [{ chainId: SOMNIA_TESTNET_CHAIN_HEX }],
         });
       } catch (switchErr) {
-        const err = switchErr as { code?: number };
+        const err = switchErr as { code?: number; message?: string };
         if (err.code === 4902) {
           await provider.request({
             method: "wallet_addEthereumChain",
@@ -203,6 +204,11 @@ export default function App() {
                 blockExplorerUrls: [SOMNIA_TESTNET_EXPLORER],
               },
             ],
+          });
+
+          await provider.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: SOMNIA_TESTNET_CHAIN_HEX }],
           });
         } else {
           throw switchErr;
@@ -221,7 +227,13 @@ export default function App() {
       addAlert({ level: "success", message: "Wallet connected to Somnia Testnet.", channel: "Wallet" });
       return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Gagal menghubungkan wallet.";
+      const walletErr = error as { code?: number; message?: string };
+      const message =
+        walletErr?.code === 4001
+          ? "Wallet connection rejected by user."
+          : error instanceof Error
+            ? error.message
+            : "Gagal menghubungkan wallet.";
       setWalletConnected(false);
       setWalletAddress("");
       setWalletChainId(null);
@@ -255,6 +267,27 @@ export default function App() {
 
   useEffect(() => {
     const provider = getEthereumProvider();
+    if (!provider) return;
+
+    const restoreWalletSession = async () => {
+      try {
+        const accounts = (await provider.request({ method: "eth_accounts" })) as string[];
+        if (!accounts?.length) return;
+        const chainHex = (await provider.request({ method: "eth_chainId" })) as string;
+        const parsedChainId = Number.parseInt(chainHex, 16);
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+        setWalletChainId(Number.isFinite(parsedChainId) ? parsedChainId : null);
+      } catch {
+        // Ignore session restore failure.
+      }
+    };
+
+    void restoreWalletSession();
+  }, []);
+
+  useEffect(() => {
+    const provider = getEthereumProvider();
     if (!provider?.on || !provider.removeListener) return;
 
     const onAccountsChanged = (accountsRaw: unknown) => {
@@ -262,16 +295,23 @@ export default function App() {
       if (!accounts.length) {
         setWalletConnected(false);
         setWalletAddress("");
+        setWalletChainId(null);
         return;
       }
       setWalletConnected(true);
       setWalletAddress(accounts[0]);
+      addAlert({ level: "info", message: "Wallet account changed.", channel: "Wallet" });
     };
 
     const onChainChanged = (chainRaw: unknown) => {
       if (typeof chainRaw !== "string") return;
       const parsed = Number.parseInt(chainRaw, 16);
       setWalletChainId(Number.isFinite(parsed) ? parsed : null);
+      if (Number.isFinite(parsed) && parsed !== SOMNIA_TESTNET_CHAIN_ID) {
+        addAlert({ level: "warning", message: "Wallet switched away from Somnia Testnet.", channel: "Wallet" });
+      } else {
+        addAlert({ level: "success", message: "Wallet connected on Somnia Testnet.", channel: "Wallet" });
+      }
     };
 
     provider.on("accountsChanged", onAccountsChanged);
@@ -281,7 +321,7 @@ export default function App() {
       provider.removeListener?.("accountsChanged", onAccountsChanged);
       provider.removeListener?.("chainChanged", onChainChanged);
     };
-  }, []);
+  }, [addAlert]);
 
   useMotionEffects(page);
 
