@@ -142,22 +142,50 @@ export default function LandingPage() {
     latestIncident,
     contractStatus,
   } = useApp();
-  const [tvl, setTvl] = useState(247.3);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTvl((prev) => prev + (Math.random() - 0.45) * 0.5);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   const features = [
-    { icon: <Eye size={24} />, title: 'Sentinel Engine', desc: 'Real-time monitoring every millisecond using Somnia network reactivity.' },
-    { icon: <Zap size={24} />, title: 'Custom Tripwires', desc: 'Set your own threat parameters. Define withdrawal limits and time windows.' },
-    { icon: <Lock size={24} />, title: 'Emergency Braking', desc: 'Automatic contract pause when exploit patterns are detected.' },
-    { icon: <Bell size={24} />, title: 'Instant Alerts', desc: 'On-chain notifications pushed to your Telegram or Discord in real-time.' },
-    { icon: <RefreshCw size={24} />, title: 'Recovery Panel', desc: 'Full incident reports with one-click resolve and unpause capabilities.' },
-    { icon: <Shield size={24} />, title: 'Zero Trust', desc: 'No external servers or admin intervention required. Fully on-chain security.' },
+    {
+      icon: <Eye size={24} />,
+      title: 'Sentinel Engine',
+      desc: 'Dashboard stream that tracks SAFE, MONITORING, and TRIGGERED states in real time.',
+      page: 'Dashboard',
+      status: 'Live in Demo',
+    },
+    {
+      icon: <Zap size={24} />,
+      title: 'Custom Tripwires',
+      desc: 'Configure burst threshold and time window to define deterministic trigger behavior.',
+      page: 'Configure',
+      status: 'Live in Demo',
+    },
+    {
+      icon: <Lock size={24} />,
+      title: 'Emergency Braking',
+      desc: 'When burst threshold is crossed, Argus raises TRIGGERED status for immediate response.',
+      page: 'Dashboard',
+      status: 'Active',
+    },
+    {
+      icon: <Bell size={24} />,
+      title: 'Instant Alerts',
+      desc: 'Session alert feed captures wallet, config, reactivity, and recovery events.',
+      page: 'Alerts',
+      status: 'Live in Demo',
+    },
+    {
+      icon: <RefreshCw size={24} />,
+      title: 'Recovery Panel',
+      desc: 'Incident context and recovery actions are handled in one deterministic operator flow.',
+      page: 'Recovery',
+      status: 'Live in Demo',
+    },
+    {
+      icon: <Shield size={24} />,
+      title: 'Zero Trust Surface',
+      desc: 'Detection and response logic stay transparent through on-chain events and app-state rules.',
+      page: 'All Pages',
+      status: 'Design Principle',
+    },
   ];
 
   const sessionState = useMemo(() => {
@@ -289,27 +317,39 @@ export default function LandingPage() {
   const trustSignals = [
     {
       icon: <ShieldCheck size={18} />,
-      title: 'Autonomous Protection',
-      desc: 'Protection logic runs continuously without requiring manual server intervention.',
-      stat: '24/7 On-Chain',
+      title: 'Live Reactivity Monitoring',
+      desc: 'Argus listens to Somnia Reactivity subscriptions and updates protection state per session.',
+      stat: 'Session Live',
     },
     {
       icon: <Gauge size={18} />,
-      title: 'Detection Throughput',
-      desc: 'Event evaluation pipeline is tuned for high-frequency state changes.',
-      stat: '< 50ms Trigger',
+      title: 'Burst Tripwire Detection',
+      desc: 'Configurable threshold and window drive repeatable SAFE -> MONITORING -> TRIGGERED behavior.',
+      stat: 'Threshold + Window',
     },
     {
       icon: <Fingerprint size={18} />,
-      title: 'Deterministic Rules',
-      desc: 'Tripwire conditions remain auditable and deterministic across execution paths.',
-      stat: 'Rule-Based',
+      title: 'Deterministic Recovery Flow',
+      desc: 'Incident summary, status transition, and operator actions are executed through one clear path.',
+      stat: 'Detect -> Recover',
     },
   ];
 
-  const handleConnect = async () => {
+  const activeSignalCount = sessionState.liveSignals.filter((signal) => signal.active).length;
+  const demoReadiness = sessionState.hasActiveMonitor ? 'READY' : 'SETUP';
+
+  const handleOpenDashboard = async () => {
     const connected = await connectWallet();
     if (connected) setPage('dashboard');
+  };
+
+  const handleOpenQuickDemo = async () => {
+    if (walletConnected) {
+      setPage('config');
+      return;
+    }
+    const connected = await connectWallet();
+    if (connected) setPage('config');
   };
 
   return (
@@ -335,33 +375,30 @@ export default function LandingPage() {
                 dark ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
               } flow-rail`}>
                 <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-                POWERED BY SOMNIA NETWORK
+                BUILT WITH SOMNIA REACTIVITY
               </div>
 
               <h1 className="text-5xl lg:text-6xl font-black leading-[1.03] mb-6 tracking-[-0.03em]">
-                <span className={dark ? 'text-white' : 'text-gray-900'}>On-Chain </span>
+                <span className={dark ? 'text-white' : 'text-gray-900'}>Reactive </span>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-                  Security
+                  On-Chain Security
                 </span>
                 <br />
-                <span className={dark ? 'text-white' : 'text-gray-900'}>For Your </span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-                  dApps
-                </span>
+                <span className={dark ? 'text-white' : 'text-gray-900'}>For Live dApp Operations</span>
               </h1>
 
               <p className={`text-lg leading-relaxed mb-10 max-w-xl ${dark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Real-time smart contract monitoring that detects and stops exploits in milliseconds.
-                No servers. No admins. Pure on-chain protection powered by Somnia Reactivity.
+                Argus monitors on-chain events, detects burst anomalies, moves protocol status to TRIGGERED when thresholds are breached,
+                and guides recovery in one operator flow.
               </p>
 
               <div className="flex flex-wrap gap-4" data-reveal data-reveal-delay={80}>
                 <button
-                  onClick={() => void handleConnect()}
+                  onClick={() => void handleOpenDashboard()}
                   data-shimmer
                   className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold text-base hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 flex items-center gap-3"
                 >
-                  Launch App
+                  Open Dashboard
                   <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                 </button>
                 <button
@@ -370,14 +407,14 @@ export default function LandingPage() {
                     dark ? 'border-gray-700 text-gray-300 hover:bg-white/5 hover:border-gray-600' : 'border-gray-300 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  Learn More
+                  See Modules
                 </button>
               </div>
 
               <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4" data-reveal data-reveal-delay={130}>
-                <StatCounter value={`$${tvl.toFixed(1)}M`} label="TVL Protected" delay={40} />
-                <StatCounter value="< 50ms" label="Response Time" delay={90} />
-                <StatCounter value="99.9%" label="Uptime" delay={140} />
+                <StatCounter value={demoReadiness} label="Demo Mode" delay={40} />
+                <StatCounter value={`${activeSignalCount}/5`} label="Active Signals" delay={90} />
+                <StatCounter value={`${alerts.length}`} label="Session Alerts" delay={140} />
               </div>
             </div>
 
@@ -425,10 +462,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16" data-reveal>
             <h2 className={`text-3xl font-bold mb-4 ${dark ? 'text-white' : 'text-gray-900'}`}>
-              Complete Security Suite
+              Argus Security Modules
             </h2>
             <p className={`max-w-2xl mx-auto ${dark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Every tool you need to protect your decentralized application from exploits, flash loan attacks, and unauthorized fund movements.
+              Each module is mapped to a live page in this demo: Configure tripwires, monitor stream behavior, inspect alerts, and execute recovery.
             </p>
           </div>
 
@@ -454,8 +491,16 @@ export default function LandingPage() {
                 }`}>
                   {feature.icon}
                 </div>
-                <h3 className={`text-lg font-bold mb-2 ${dark ? 'text-white' : 'text-gray-900'}`}>{feature.title}</h3>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{feature.title}</h3>
+                  <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full ${
+                    dark ? 'bg-cyan-500/15 text-cyan-300' : 'bg-cyan-100 text-cyan-700'
+                  }`}>
+                    {feature.status}
+                  </span>
+                </div>
                 <p className={`text-sm leading-relaxed ${dark ? 'text-gray-400' : 'text-gray-600'}`}>{feature.desc}</p>
+                <p className={`mt-3 text-xs font-semibold ${dark ? 'text-gray-500' : 'text-gray-500'}`}>Page: {feature.page}</p>
               </div>
             ))}
           </div>
@@ -601,26 +646,26 @@ export default function LandingPage() {
             data-spotlight
           >
             <h3 className={`text-3xl md:text-4xl font-black tracking-[-0.02em] mb-4 ${dark ? 'text-white' : 'text-gray-900'}`}>
-              Ready To Secure Your dApp Stack?
+              Ready For The 2-Minute Judge Demo?
             </h3>
             <p className={`max-w-2xl mx-auto mb-8 ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
-              Start with live monitoring first, then progressively enforce autonomous tripwires as your protocol grows.
+              Start from Quick Demo Mode in Configure, open Dashboard to trigger burst detection, then finalize incident handling in Recovery.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
-                onClick={() => void handleConnect()}
+                onClick={() => void handleOpenQuickDemo()}
                 data-shimmer
                 className="px-7 py-3.5 rounded-xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25"
               >
-                Launch App
+                Run Quick Demo Mode
               </button>
               <button
-                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => void handleOpenDashboard()}
                 className={`px-7 py-3.5 rounded-xl font-bold border transition-all ${
                   dark ? 'border-gray-600 text-gray-200 hover:bg-white/5' : 'border-gray-300 text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                Explore Features
+                Open Dashboard
               </button>
             </div>
           </div>
