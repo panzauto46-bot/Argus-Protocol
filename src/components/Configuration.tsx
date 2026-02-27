@@ -43,6 +43,8 @@ export default function Configuration() {
     withdrawalLimit <= 35 ? { label: 'Relaxed', color: 'text-emerald-400', bg: 'bg-emerald-500/10' } :
     { label: 'Very Relaxed', color: 'text-blue-400', bg: 'bg-blue-500/10' };
 
+  const selectedTimeLabel = (timeOptions.find((option) => option.value === timeUnit)?.label ?? timeUnit).toLowerCase();
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8" data-reveal>
@@ -54,7 +56,7 @@ export default function Configuration() {
 
       <div className="space-y-6">
         {/* Contract Address */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop data-tilt-strength={5.4}>
+        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop data-spotlight data-tilt-strength={5.4}>
           <div className="flex items-center gap-3 mb-4">
             <div className={`pop-icon w-10 h-10 rounded-xl flex items-center justify-center ${dark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
               <Settings size={20} />
@@ -90,7 +92,7 @@ export default function Configuration() {
         </div>
 
         {/* Withdrawal Limit */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={70} data-tilt data-pop data-tilt-strength={5.4}>
+        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={70} data-tilt data-pop data-spotlight data-tilt-strength={5.4}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`pop-icon w-10 h-10 rounded-xl flex items-center justify-center ${dark ? 'bg-yellow-500/10 text-yellow-400' : 'bg-yellow-50 text-yellow-600'}`}>
@@ -139,7 +141,7 @@ export default function Configuration() {
         </div>
 
         {/* Time Window */}
-        <div className={`p-6 rounded-2xl border relative ${showDropdown ? 'z-[90]' : 'z-10'} ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop data-tilt-strength={5.4}>
+        <div className={`p-6 rounded-2xl border relative ${showDropdown ? 'z-[90]' : 'z-10'} ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop data-spotlight data-tilt-strength={5.4}>
           <div className="flex items-center gap-3 mb-4">
             <div className={`pop-icon w-10 h-10 rounded-xl flex items-center justify-center ${dark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
               <Zap size={20} />
@@ -202,11 +204,11 @@ export default function Configuration() {
         </div>
 
         {/* Summary */}
-        <div className={`p-6 rounded-2xl border-2 border-dashed ${dark ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-cyan-300 bg-cyan-50'}`} data-reveal data-reveal-delay={160} data-tilt data-pop data-tilt-strength={4.6}>
+        <div className={`p-6 rounded-2xl border-2 border-dashed ${dark ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-cyan-300 bg-cyan-50'}`} data-reveal data-reveal-delay={160} data-tilt data-pop data-spotlight data-tilt-strength={4.6}>
           <h3 className={`text-sm font-bold mb-3 ${dark ? 'text-cyan-400' : 'text-cyan-700'}`}>Tripwire Rule Summary</h3>
           <p className={`text-sm ${dark ? 'text-gray-300' : 'text-gray-700'}`}>
             If any withdrawal exceeds <span className="text-cyan-400 font-bold">{withdrawalLimit}%</span> of total TVL within{' '}
-            <span className="text-cyan-400 font-bold">{timeWindow} {timeUnit}</span>,
+            <span className="text-cyan-400 font-bold">{timeWindow} {selectedTimeLabel}</span>,
             the smart contract will be <span className="text-red-400 font-bold">automatically paused</span>.
           </p>
         </div>
@@ -217,6 +219,7 @@ export default function Configuration() {
           disabled={!contractAddress || deploying || deployed}
           data-reveal
           data-reveal-delay={200}
+          data-shimmer
           className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
             deployed
               ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/30 cursor-default'
@@ -248,7 +251,7 @@ export default function Configuration() {
         </button>
 
         {deployed && (
-          <div className={`p-4 rounded-xl text-center ${dark ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`} data-reveal>
+          <div className={`p-4 rounded-xl text-center ${dark ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`} data-reveal data-spotlight>
             <p className={`text-sm ${dark ? 'text-gray-300' : 'text-gray-700'}`}>
               Your contract is now protected. View real-time monitoring on the{' '}
               <button onClick={() => setPage('dashboard')} className="text-cyan-400 font-bold hover:underline">Dashboard</button>.

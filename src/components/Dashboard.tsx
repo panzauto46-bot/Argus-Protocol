@@ -120,7 +120,7 @@ export default function Dashboard() {
     triggered: {
       color: 'text-red-400',
       bg: dark ? 'bg-red-500/10 border-red-500/30 animate-blink-red' : 'bg-red-50 border-red-200',
-      label: 'TRIGGERED — PAUSED',
+      label: 'TRIGGERED - PAUSED',
       desc: 'Exploit detected! Contract has been paused.',
       dot: 'bg-red-500 animate-blink-red',
     },
@@ -137,10 +137,10 @@ export default function Dashboard() {
         <div>
           <h1 className={`text-2xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Threat Matrix Dashboard</h1>
           <p className={`text-sm mt-1 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Monitoring: <span className="text-cyan-400 font-mono">UniSwap V3 Pool</span> · Contract: <span className="font-mono text-cyan-400">0x68b3...a5F2</span>
+            Monitoring: <span className="text-cyan-400 font-mono">UniSwap V3 Pool</span> - Contract: <span className="font-mono text-cyan-400">0x68b3...a5F2</span>
           </p>
         </div>
-        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${status.bg}`} data-tilt data-pop>
+        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${status.bg}`} data-tilt data-pop data-spotlight>
           <div className={`w-3 h-3 rounded-full ${status.dot}`} />
           <div>
             <div className={`text-sm font-bold ${status.color}`}>{status.label}</div>
@@ -191,6 +191,7 @@ export default function Dashboard() {
             data-reveal-delay={i * 70}
             data-tilt
             data-pop
+            data-spotlight
             className={`p-5 rounded-2xl border transition-colors ${
               dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'
             }`}
@@ -211,7 +212,8 @@ export default function Dashboard() {
         data-reveal
         data-reveal-delay={90}
         data-tilt
-        data-pop
+        data-pop="strong"
+        data-spotlight
         data-tilt-strength={5.5}
       >
         <div className="flex items-center justify-between mb-6">
@@ -260,7 +262,8 @@ export default function Dashboard() {
         data-reveal
         data-reveal-delay={120}
         data-tilt
-        data-pop
+        data-pop="strong"
+        data-spotlight
         data-tilt-strength={4.6}
       >
         <div className="p-6 pb-4">
@@ -282,7 +285,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {transactions.map((tx) => (
-                <tr key={tx.id} data-reveal="left" data-reveal-delay={40} className={`border-b transition-colors ${
+                <tr key={tx.id} data-reveal="left" data-reveal-delay={40} className={`surface-row border-b transition-colors ${
                   dark ? 'border-argus-border/50 hover:bg-white/[0.02]' : 'border-gray-100 hover:bg-gray-50'
                 } ${tx.status === 'suspicious' ? (dark ? 'bg-yellow-500/5' : 'bg-yellow-50') : ''} ${tx.status === 'blocked' ? (dark ? 'bg-red-500/5' : 'bg-red-50') : ''}`}>
                   <td className="px-6 py-4">

@@ -103,6 +103,7 @@ export default function Navbar() {
             ) : (
               <button
                 onClick={() => setWalletConnected(true)}
+                data-shimmer
                 className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg text-sm font-semibold hover:from-cyan-400 hover:to-blue-400 transition-all shadow-lg shadow-cyan-500/25"
               >
                 Connect Wallet

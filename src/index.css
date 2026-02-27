@@ -91,6 +91,20 @@
   100% { transform: rotateX(-16deg) rotateY(360deg); }
 }
 
+@keyframes button-shimmer {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 .animate-scan-line { animation: scan-line 3s linear infinite; }
 .animate-float { animation: float 3s ease-in-out infinite; }
@@ -273,6 +287,81 @@ html:not(.dark) .app-vignette {
 [data-pop]:hover .pop-chip,
 [data-pop]:focus-within .pop-chip {
   transform: translateY(-1px);
+}
+
+[data-spotlight] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+[data-spotlight]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    240px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(103, 232, 249, 0.24),
+    transparent 64%
+  );
+  opacity: 0;
+  transition:
+    opacity 260ms var(--ease-fluid),
+    transform 300ms var(--ease-fluid);
+  z-index: 0;
+}
+
+html:not(.dark) [data-spotlight]::before {
+  background: radial-gradient(
+    260px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(14, 165, 233, 0.17),
+    transparent 65%
+  );
+}
+
+[data-spotlight]:hover::before,
+[data-spotlight]:focus-within::before {
+  opacity: 1;
+}
+
+[data-shimmer] {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-shimmer]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -50%;
+  width: 38%;
+  transform: translateX(-140%) skewX(-18deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 52%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+[data-shimmer]:hover::after,
+[data-shimmer]:focus-visible::after {
+  animation: button-shimmer 980ms var(--ease-fluid);
+}
+
+.surface-row {
+  transition:
+    background-color 220ms var(--ease-fluid),
+    box-shadow 220ms var(--ease-fluid),
+    transform 220ms var(--ease-fluid);
+}
+
+.surface-row:hover {
+  transform: translateX(1px);
 }
 
 [data-parallax] {

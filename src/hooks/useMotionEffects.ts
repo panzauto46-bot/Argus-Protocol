@@ -124,6 +124,42 @@ export default function useMotionEffects(triggerKey: string) {
       }
     }
 
+    const spotlightItems = Array.from(document.querySelectorAll<HTMLElement>('[data-spotlight]'));
+    if (spotlightItems.length) {
+      spotlightItems.forEach((item) => {
+        if (reduceMotion) {
+          item.style.setProperty('--spot-x', '50%');
+          item.style.setProperty('--spot-y', '50%');
+          return;
+        }
+
+        const onMove = (event: MouseEvent) => {
+          const rect = item.getBoundingClientRect();
+          const relativeX = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
+          const relativeY = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
+
+          item.style.setProperty('--spot-x', `${relativeX.toFixed(1)}%`);
+          item.style.setProperty('--spot-y', `${relativeY.toFixed(1)}%`);
+        };
+
+        const onLeave = () => {
+          item.style.setProperty('--spot-x', '50%');
+          item.style.setProperty('--spot-y', '50%');
+        };
+
+        item.addEventListener('mousemove', onMove);
+        item.addEventListener('mouseleave', onLeave);
+        item.addEventListener('blur', onLeave);
+
+        cleanups.push(() => {
+          item.removeEventListener('mousemove', onMove);
+          item.removeEventListener('mouseleave', onLeave);
+          item.removeEventListener('blur', onLeave);
+          onLeave();
+        });
+      });
+    }
+
     return () => {
       cleanups.forEach((cleanup) => cleanup());
     };

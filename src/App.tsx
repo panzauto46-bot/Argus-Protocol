@@ -56,6 +56,7 @@ export default function App() {
   const [landingScrolled, setLandingScrolled] = useState(false);
   const [landingMenuOpen, setLandingMenuOpen] = useState(false);
   const [activeLandingSection, setActiveLandingSection] = useState<(typeof landingNavItems)[number]['id']>('home');
+  const [scrollProgress, setScrollProgress] = useState(0);
   const desktopNavRef = useRef<HTMLDivElement | null>(null);
   const desktopNavButtonRefs = useRef<Partial<Record<(typeof landingNavItems)[number]['id'], HTMLButtonElement | null>>>({});
   const [desktopNavIndicator, setDesktopNavIndicator] = useState({ left: 0, width: 0, opacity: 0 });
@@ -155,11 +156,35 @@ export default function App() {
     };
   }, [page, activeLandingSection]);
 
+  useEffect(() => {
+    const updateScrollProgress = () => {
+      const doc = document.documentElement;
+      const maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const progress = (window.scrollY / maxScroll) * 100;
+      setScrollProgress(Math.max(0, Math.min(100, progress)));
+    };
+
+    updateScrollProgress();
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+    window.addEventListener('resize', updateScrollProgress);
+
+    return () => {
+      window.removeEventListener('scroll', updateScrollProgress);
+      window.removeEventListener('resize', updateScrollProgress);
+    };
+  }, [page]);
+
   return (
     <ThemeContext.Provider value={{ dark, toggle }}>
       <AppContext.Provider value={{ page, setPage, walletConnected, setWalletConnected, walletAddress, contractStatus, setContractStatus }}>
         <div className={`min-h-screen relative isolate overflow-x-hidden transition-colors duration-500 ${dark ? 'bg-argus-dark text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
           <NeuralBackground dark={dark} />
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-[1000] h-[2px]">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.75)] transition-[width] duration-150 ease-out"
+              style={{ width: `${scrollProgress}%` }}
+            />
+          </div>
           <div className="pointer-events-none fixed inset-0 z-[1] overflow-hidden">
             <div className="app-ambient" />
             <div className="app-grid opacity-80" />
@@ -238,6 +263,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={handleLandingConnect}
+                      data-shimmer
                       className="hidden md:inline-flex px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-sm font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 items-center gap-2"
                     >
                       Connect Wallet
@@ -286,6 +312,7 @@ export default function App() {
                     </div>
                     <button
                       onClick={handleLandingConnect}
+                      data-shimmer
                       className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-sm font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2"
                     >
                       Connect Wallet

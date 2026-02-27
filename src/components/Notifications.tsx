@@ -71,7 +71,7 @@ export default function Notifications() {
 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Discord */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop="strong" data-tilt-strength={5}>
+        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-tilt data-pop="strong" data-spotlight data-tilt-strength={5}>
           <div className="flex items-center gap-3 mb-5">
             <div className="pop-icon w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
               <MessageSquare size={20} />
@@ -106,6 +106,7 @@ export default function Notifications() {
             <button
               onClick={handleTestDiscord}
               disabled={!discordWebhook || testingDiscord}
+              data-shimmer
               className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
                 discordSuccess
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -126,7 +127,7 @@ export default function Notifications() {
         </div>
 
         {/* Telegram */}
-        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={80} data-tilt data-pop="strong" data-tilt-strength={5}>
+        <div className={`p-6 rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={80} data-tilt data-pop="strong" data-spotlight data-tilt-strength={5}>
           <div className="flex items-center gap-3 mb-5">
             <div className="pop-icon w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
               <Send size={20} />
@@ -180,6 +181,7 @@ export default function Notifications() {
             <button
               onClick={handleTestTelegram}
               disabled={!telegramBot || !telegramChat || testingTelegram}
+              data-shimmer
               className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
                 telegramSuccess
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -201,7 +203,7 @@ export default function Notifications() {
       </div>
 
       {/* Notification History */}
-      <div className={`rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop="strong" data-tilt-strength={4.6}>
+      <div className={`rounded-2xl border ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`} data-reveal data-reveal-delay={120} data-tilt data-pop="strong" data-spotlight data-tilt-strength={4.6}>
         <div className="p-6 pb-4">
           <h2 className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Alert History</h2>
           <p className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Recent notifications sent across all channels</p>
@@ -214,7 +216,7 @@ export default function Notifications() {
                 key={notif.id}
                 data-reveal="left"
                 data-reveal-delay={40}
-                className={`px-6 py-4 flex items-start gap-4 transition-colors ${
+                className={`surface-row px-6 py-4 flex items-start gap-4 transition-colors ${
                   dark ? 'hover:bg-white/[0.02]' : 'hover:bg-gray-50'
                 }`}
               >

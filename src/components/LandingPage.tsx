@@ -120,6 +120,8 @@ function StatCounter({ value, label, delay = 0 }: { value: string; label: string
       data-reveal="zoom"
       data-reveal-delay={delay}
       data-tilt
+      data-pop
+      data-spotlight
     >
       <div className="text-3xl font-bold text-cyan-400">{value}</div>
       <div className={`text-sm mt-1 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{label}</div>
@@ -228,6 +230,7 @@ export default function LandingPage() {
               <div className="flex flex-wrap gap-4" data-reveal data-reveal-delay={80}>
                 <button
                   onClick={handleConnect}
+                  data-shimmer
                   className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold text-base hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 flex items-center gap-3"
                 >
                   Launch App
@@ -267,6 +270,7 @@ export default function LandingPage() {
                 data-reveal-delay={idx * 80}
                 data-tilt
                 data-pop
+                data-spotlight
                 className={`rounded-2xl border px-6 py-5 transition-all ${
                   dark ? 'bg-argus-card/45 border-argus-border hover:border-cyan-500/30' : 'bg-white/90 border-gray-200 hover:border-cyan-300'
                 }`}
@@ -308,6 +312,7 @@ export default function LandingPage() {
                 data-reveal-delay={i * 70}
                 data-tilt
                 data-pop
+                data-spotlight
                 className={`group p-6 rounded-2xl border transition-all duration-300 ${
                   dark
                     ? 'bg-argus-card/50 border-argus-border hover:border-cyan-500/30 hover:bg-argus-card'
@@ -343,6 +348,7 @@ export default function LandingPage() {
                 data-reveal-delay={i * 80}
                 data-tilt
                 data-pop
+                data-spotlight
                 className={`flex gap-6 p-6 rounded-2xl border transition-all relative overflow-hidden ${
                   dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'
                 }`}
@@ -396,7 +402,8 @@ export default function LandingPage() {
             }`}
             data-reveal="zoom"
             data-tilt
-            data-pop
+            data-pop="strong"
+            data-spotlight
           >
             <h3 className={`text-3xl md:text-4xl font-black tracking-[-0.02em] mb-4 ${dark ? 'text-white' : 'text-gray-900'}`}>
               Ready To Secure Your dApp Stack?
@@ -407,6 +414,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap justify-center gap-3">
               <button
                 onClick={handleConnect}
+                data-shimmer
                 className="px-7 py-3.5 rounded-xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25"
               >
                 Launch App
