@@ -131,7 +131,7 @@ function StatCounter({ value, label, delay = 0 }: { value: string; label: string
 
 export default function LandingPage() {
   const { dark } = useTheme();
-  const { setPage, setWalletConnected } = useApp();
+  const { setPage, connectWallet } = useApp();
   const [tvl, setTvl] = useState(247.3);
 
   useEffect(() => {
@@ -179,9 +179,9 @@ export default function LandingPage() {
     },
   ];
 
-  const handleConnect = () => {
-    setWalletConnected(true);
-    setPage('dashboard');
+  const handleConnect = async () => {
+    const connected = await connectWallet();
+    if (connected) setPage('dashboard');
   };
 
   return (
@@ -229,7 +229,7 @@ export default function LandingPage() {
 
               <div className="flex flex-wrap gap-4" data-reveal data-reveal-delay={80}>
                 <button
-                  onClick={handleConnect}
+                  onClick={() => void handleConnect()}
                   data-shimmer
                   className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold text-base hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 flex items-center gap-3"
                 >
@@ -413,7 +413,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
-                onClick={handleConnect}
+                onClick={() => void handleConnect()}
                 data-shimmer
                 className="px-7 py-3.5 rounded-xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25"
               >

@@ -1,188 +1,363 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useTheme, useApp } from '../App';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { TrendingUp, Activity, Clock, Wallet, ArrowUpRight, ArrowDownRight, Eye } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SDK } from "@somnia-chain/reactivity";
+import { createPublicClient, isAddress, webSocket } from "viem";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { TrendingUp, Activity, Clock, Wallet, ArrowUpRight, ArrowDownRight, Eye, Wifi, WifiOff } from "lucide-react";
+import { useTheme, useApp } from "../App";
+import { SOMNIA_TESTNET_RPC_WS, shortenAddress, somniaTestnet } from "../lib/somnia";
 
 interface DataPoint {
   time: string;
-  tvl: number;
+  events: number;
   timestamp: number;
 }
 
-interface Transaction {
+interface StreamEvent {
   id: number;
   time: string;
   wallet: string;
-  amount: string;
-  type: 'deposit' | 'withdrawal';
-  status: 'normal' | 'suspicious' | 'blocked';
+  topic0: string;
+  dataPreview: string;
+  status: "normal" | "suspicious" | "blocked";
+}
+
+type StreamState = "idle" | "connecting" | "live" | "error";
+
+function extractAddressFromTopic(topic?: string): string | null {
+  if (!topic) return null;
+  const clean = topic.toLowerCase();
+  if (!/^0x[a-f0-9]{64}$/.test(clean)) return null;
+  return `0x${clean.slice(-40)}`;
 }
 
 export default function Dashboard() {
   const { dark } = useTheme();
-  const { contractStatus, setContractStatus } = useApp();
-  const [tvlData, setTvlData] = useState<DataPoint[]>([]);
-  const [currentTVL, setCurrentTVL] = useState(2450000);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const {
+    contractStatus,
+    setContractStatus,
+    monitoringConfig,
+    addAlert,
+    setLatestIncident,
+  } = useApp();
 
-  const generateInitialData = useCallback(() => {
-    const data: DataPoint[] = [];
-    let val = 2450000;
-    for (let i = 30; i >= 0; i--) {
-      val += (Math.random() - 0.48) * 15000;
-      const d = new Date(Date.now() - i * 2000);
-      data.push({
-        time: d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        tvl: Math.round(val),
+  const [streamState, setStreamState] = useState<StreamState>("idle");
+  const [streamError, setStreamError] = useState<string | null>(null);
+  const [metricData, setMetricData] = useState<DataPoint[]>([]);
+  const [transactions, setTransactions] = useState<StreamEvent[]>([]);
+  const eventTimestampsRef = useRef<number[]>([]);
+  const lastWarningAtRef = useRef(0);
+  const lastCriticalAtRef = useRef(0);
+  const contractStatusRef = useRef(contractStatus);
+
+  const canMonitor = monitoringConfig.enabled && isAddress(monitoringConfig.contractAddress);
+  const warningThreshold = Math.max(2, Math.ceil(monitoringConfig.burstThreshold * 0.6));
+
+  useEffect(() => {
+    contractStatusRef.current = contractStatus;
+  }, [contractStatus]);
+
+  useEffect(() => {
+    const now = Date.now();
+    const seed: DataPoint[] = [];
+    for (let i = 30; i >= 0; i -= 1) {
+      const d = new Date(now - i * 1000);
+      seed.push({
+        time: d.toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit" }),
+        events: 0,
         timestamp: d.getTime(),
       });
     }
-    return data;
+    setMetricData(seed);
   }, []);
 
   useEffect(() => {
-    setTvlData(generateInitialData());
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const cutoff = now - monitoringConfig.windowSeconds * 1000;
+      eventTimestampsRef.current = eventTimestampsRef.current.filter((ts) => ts >= cutoff);
+      const count = eventTimestampsRef.current.length;
 
-    const initialTx: Transaction[] = [
-      { id: 1, time: '14:23:01', wallet: '0x3a4F...8B2c', amount: '+12,500 USDC', type: 'deposit', status: 'normal' },
-      { id: 2, time: '14:22:45', wallet: '0x9c1E...4D7a', amount: '-3,200 USDC', type: 'withdrawal', status: 'normal' },
-      { id: 3, time: '14:22:12', wallet: '0x5b8A...1F3e', amount: '+45,000 USDC', type: 'deposit', status: 'normal' },
-      { id: 4, time: '14:21:58', wallet: '0x2d6C...9A4b', amount: '-8,750 USDC', type: 'withdrawal', status: 'suspicious' },
-      { id: 5, time: '14:21:30', wallet: '0x7e2B...5C8d', amount: '+21,300 USDC', type: 'deposit', status: 'normal' },
-    ];
-    setTransactions(initialTx);
-  }, [generateInitialData]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const change = (Math.random() - 0.48) * 15000;
-      setCurrentTVL((prev) => {
-        const newVal = prev + change;
-        setTvlData((data) => {
-          const now = new Date();
-          const newData = [
-            ...data.slice(-40),
-            {
-              time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              tvl: Math.round(newVal),
-              timestamp: now.getTime(),
-            },
-          ];
-          return newData;
-        });
-        return newVal;
-      });
-
-      // Random new transaction
-      if (Math.random() > 0.6) {
-        const wallets = ['0x3a4F...8B2c', '0x9c1E...4D7a', '0x5b8A...1F3e', '0x2d6C...9A4b', '0x7e2B...5C8d', '0xaB3D...7E1f'];
-        const isDeposit = Math.random() > 0.4;
-        const amount = Math.floor(Math.random() * 50000) + 1000;
-        const isSuspicious = !isDeposit && amount > 30000;
-        const now = new Date();
-        setTransactions((prev) => [
-          {
-            id: Date.now(),
-            time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            wallet: wallets[Math.floor(Math.random() * wallets.length)],
-            amount: `${isDeposit ? '+' : '-'}${amount.toLocaleString()} USDC`,
-            type: isDeposit ? 'deposit' : 'withdrawal',
-            status: isSuspicious ? 'suspicious' : 'normal',
-          },
-          ...prev.slice(0, 9),
-        ]);
-
-        if (isSuspicious && contractStatus === 'safe') {
-          setContractStatus('monitoring');
-          setTimeout(() => setContractStatus('safe'), 5000);
+      if (contractStatusRef.current !== "triggered") {
+        if (count >= warningThreshold) {
+          setContractStatus("monitoring");
+        } else {
+          setContractStatus("safe");
         }
       }
-    }, 2000);
 
-    return () => clearInterval(interval);
-  }, [contractStatus, setContractStatus]);
+      setMetricData((prev) => [
+        ...prev.slice(-44),
+        {
+          time: new Date(now).toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit" }),
+          events: count,
+          timestamp: now,
+        },
+      ]);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [monitoringConfig.windowSeconds, setContractStatus, warningThreshold]);
+
+  useEffect(() => {
+    if (!canMonitor) {
+      setStreamState("idle");
+      setStreamError(null);
+      return;
+    }
+
+    const publicClient = createPublicClient({
+      chain: somniaTestnet,
+      transport: webSocket(SOMNIA_TESTNET_RPC_WS),
+    });
+    const sdk = new SDK({ public: publicClient });
+
+    let closed = false;
+    let unsubscribeFn: (() => Promise<unknown>) | null = null;
+
+    const connect = async () => {
+      try {
+        setStreamState("connecting");
+        setStreamError(null);
+
+        const result = await sdk.subscribe({
+          ethCalls: [],
+          context: "topic0",
+          eventContractSources: [monitoringConfig.contractAddress as `0x${string}`],
+          topicOverrides: monitoringConfig.topic0 ? [monitoringConfig.topic0 as `0x${string}`] : undefined,
+          onlyPushChanges: false,
+          onData: (packet) => {
+            if (closed) return;
+            const topics = packet?.result?.topics ?? [];
+            const dataHex = packet?.result?.data ?? "0x";
+            const topic0 = topics[0] ?? "0x";
+            const wallet =
+              extractAddressFromTopic(topics[1]) ??
+              extractAddressFromTopic(topics[2]) ??
+              monitoringConfig.contractAddress;
+            const now = Date.now();
+            const cutoff = now - monitoringConfig.windowSeconds * 1000;
+
+            eventTimestampsRef.current = [...eventTimestampsRef.current, now].filter((ts) => ts >= cutoff);
+            const burstCount = eventTimestampsRef.current.length;
+
+            const status: StreamEvent["status"] =
+              burstCount >= monitoringConfig.burstThreshold
+                ? "blocked"
+                : burstCount >= warningThreshold
+                  ? "suspicious"
+                  : "normal";
+
+            setTransactions((prev) => [
+              {
+                id: now,
+                time: new Date(now).toLocaleTimeString("en-US", { hour12: false }),
+                wallet: shortenAddress(wallet),
+                topic0: topic0.slice(0, 14) + "...",
+                dataPreview: dataHex.length > 18 ? `${dataHex.slice(0, 18)}...` : dataHex,
+                status,
+              },
+              ...prev.slice(0, 24),
+            ]);
+
+            if (status === "blocked") {
+              setContractStatus("triggered");
+              if (now - lastCriticalAtRef.current > 6000) {
+                lastCriticalAtRef.current = now;
+                setLatestIncident({
+                  detectedAt: new Date(now).toISOString(),
+                  contractAddress: monitoringConfig.contractAddress,
+                  topic0: monitoringConfig.topic0 || "any",
+                  eventCount: burstCount,
+                  windowSeconds: monitoringConfig.windowSeconds,
+                });
+                addAlert({
+                  level: "critical",
+                  channel: "Reactivity",
+                  message: `Tripwire triggered: ${burstCount} events/${monitoringConfig.windowSeconds}s on ${shortenAddress(monitoringConfig.contractAddress)}.`,
+                });
+              }
+            } else if (status === "suspicious" && contractStatusRef.current !== "triggered") {
+              setContractStatus("monitoring");
+              if (now - lastWarningAtRef.current > 8000) {
+                lastWarningAtRef.current = now;
+                addAlert({
+                  level: "warning",
+                  channel: "Reactivity",
+                  message: `Burst detected: ${burstCount}/${monitoringConfig.burstThreshold} events in active window.`,
+                });
+              }
+            } else if (contractStatusRef.current !== "triggered") {
+              setContractStatus("safe");
+            }
+          },
+          onError: (error) => {
+            if (closed) return;
+            setStreamState("error");
+            setStreamError(error.message);
+          },
+        });
+
+        if (result instanceof Error) {
+          throw result;
+        }
+
+        unsubscribeFn = result.unsubscribe;
+        setStreamState("live");
+        addAlert({
+          level: "info",
+          channel: "Reactivity",
+          message: `Subscription live for ${shortenAddress(monitoringConfig.contractAddress)}.`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to initialize subscription";
+        setStreamState("error");
+        setStreamError(message);
+        addAlert({
+          level: "warning",
+          channel: "Reactivity",
+          message: `Subscription error: ${message}`,
+        });
+      }
+    };
+
+    void connect();
+
+    return () => {
+      closed = true;
+      if (unsubscribeFn) {
+        void unsubscribeFn();
+      }
+    };
+  }, [
+    addAlert,
+    canMonitor,
+    monitoringConfig.burstThreshold,
+    monitoringConfig.contractAddress,
+    monitoringConfig.topic0,
+    monitoringConfig.windowSeconds,
+    setContractStatus,
+    setLatestIncident,
+    warningThreshold,
+  ]);
 
   const statusConfig = {
     safe: {
-      color: 'text-emerald-400',
-      bg: dark ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200',
-      label: 'SAFE',
-      desc: 'All systems nominal. No threats detected.',
-      dot: 'bg-emerald-500',
+      color: "text-emerald-400",
+      bg: dark ? "bg-emerald-500/10 border-emerald-500/30" : "bg-emerald-50 border-emerald-200",
+      label: "SAFE",
+      desc: "No suspicious burst in configured window.",
+      dot: "bg-emerald-500",
     },
     monitoring: {
-      color: 'text-yellow-400',
-      bg: dark ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200',
-      label: 'MONITORING',
-      desc: 'Unusual activity detected. Monitoring closely.',
-      dot: 'bg-yellow-500 animate-pulse',
+      color: "text-yellow-400",
+      bg: dark ? "bg-yellow-500/10 border-yellow-500/30" : "bg-yellow-50 border-yellow-200",
+      label: "MONITORING",
+      desc: "Burst pattern detected, threshold not yet breached.",
+      dot: "bg-yellow-500 animate-pulse",
     },
     triggered: {
-      color: 'text-red-400',
-      bg: dark ? 'bg-red-500/10 border-red-500/30 animate-blink-red' : 'bg-red-50 border-red-200',
-      label: 'TRIGGERED - PAUSED',
-      desc: 'Exploit detected! Contract has been paused.',
-      dot: 'bg-red-500 animate-blink-red',
+      color: "text-red-400",
+      bg: dark ? "bg-red-500/10 border-red-500/30 animate-blink-red" : "bg-red-50 border-red-200",
+      label: "TRIGGERED",
+      desc: "Burst threshold breached, investigate recovery panel.",
+      dot: "bg-red-500 animate-blink-red",
     },
   };
 
+  const streamConfig = {
+    idle: { label: "IDLE", className: "text-gray-400", icon: <WifiOff size={14} /> },
+    connecting: { label: "CONNECTING", className: "text-yellow-400", icon: <Activity size={14} className="animate-pulse" /> },
+    live: { label: "LIVE", className: "text-cyan-400", icon: <Wifi size={14} /> },
+    error: { label: "ERROR", className: "text-red-400", icon: <WifiOff size={14} /> },
+  } as const;
+
   const status = statusConfig[contractStatus];
-  const tvlChange = tvlData.length > 1 ? currentTVL - tvlData[tvlData.length - 2]?.tvl : 0;
-  const tvlChangePercent = tvlData.length > 1 ? ((tvlChange / tvlData[tvlData.length - 2]?.tvl) * 100) : 0;
+  const stream = streamConfig[streamState];
+  const currentEvents = metricData[metricData.length - 1]?.events ?? 0;
+  const previousEvents = metricData[metricData.length - 2]?.events ?? 0;
+  const change = currentEvents - previousEvents;
+  const changePercent = previousEvents > 0 ? (change / previousEvents) * 100 : 0;
+  const thresholdUsage = monitoringConfig.burstThreshold > 0
+    ? (currentEvents / monitoringConfig.burstThreshold) * 100
+    : 0;
+
+  if (!canMonitor) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className={`rounded-2xl border p-6 ${dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"}`}>
+          <h1 className={`text-2xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>Threat Matrix Dashboard</h1>
+          <p className={`text-sm mt-2 ${dark ? "text-gray-400" : "text-gray-500"}`}>
+            Monitoring belum aktif. Buka halaman Configure untuk set contract address dan start subscription.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4" data-reveal>
         <div>
-          <h1 className={`text-2xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Threat Matrix Dashboard</h1>
-          <p className={`text-sm mt-1 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Monitoring: <span className="text-cyan-400 font-mono">UniSwap V3 Pool</span> - Contract: <span className="font-mono text-cyan-400">0x68b3...a5F2</span>
+          <h1 className={`text-2xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>Threat Matrix Dashboard</h1>
+          <p className={`text-sm mt-1 ${dark ? "text-gray-400" : "text-gray-500"}`}>
+            Monitoring contract: <span className="text-cyan-400 font-mono">{shortenAddress(monitoringConfig.contractAddress)}</span>{" "}
+            {monitoringConfig.topic0 ? (
+              <>
+                | topic0: <span className="text-cyan-400 font-mono">{monitoringConfig.topic0.slice(0, 14)}...</span>
+              </>
+            ) : (
+              <>| topic0: <span className="text-cyan-400 font-mono">any</span></>
+            )}
           </p>
         </div>
-        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${status.bg}`} data-tilt data-pop data-spotlight>
-          <div className={`w-3 h-3 rounded-full ${status.dot}`} />
-          <div>
-            <div className={`text-sm font-bold ${status.color}`}>{status.label}</div>
-            <div className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{status.desc}</div>
+        <div className="flex flex-col sm:flex-row items-stretch gap-2 w-full sm:w-auto">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${dark ? "bg-argus-card/60 border-argus-border" : "bg-white border-gray-200"}`}>
+            <span className={stream.className}>{stream.icon}</span>
+            <span className={`text-xs font-bold tracking-wider ${stream.className}`}>{stream.label}</span>
+          </div>
+          <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${status.bg}`} data-tilt data-pop data-spotlight>
+            <div className={`w-3 h-3 rounded-full ${status.dot}`} />
+            <div>
+              <div className={`text-sm font-bold ${status.color}`}>{status.label}</div>
+              <div className={`text-xs ${dark ? "text-gray-400" : "text-gray-500"}`}>{status.desc}</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           {
-            label: 'Total Value Locked',
-            value: `$${(currentTVL / 1000000).toFixed(2)}M`,
-            change: `${tvlChange >= 0 ? '+' : ''}${(tvlChange / 1000).toFixed(1)}K`,
-            changeColor: tvlChange >= 0 ? 'text-emerald-400' : 'text-red-400',
+            label: "Events in Window",
+            value: currentEvents.toString(),
+            change: `${change >= 0 ? "+" : ""}${change} vs prev second`,
+            changeColor: change >= 0 ? "text-emerald-400" : "text-red-400",
             icon: <TrendingUp size={20} />,
-            iconBg: 'bg-cyan-500/10 text-cyan-400',
+            iconBg: "bg-cyan-500/10 text-cyan-400",
           },
           {
-            label: 'TVL Change (24h)',
-            value: `${tvlChangePercent >= 0 ? '+' : ''}${tvlChangePercent.toFixed(3)}%`,
-            change: 'Last 24 hours',
-            changeColor: dark ? 'text-gray-500' : 'text-gray-400',
-            icon: tvlChangePercent >= 0 ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />,
-            iconBg: tvlChangePercent >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400',
+            label: "Burst Threshold",
+            value: `${monitoringConfig.burstThreshold}`,
+            change: `${thresholdUsage.toFixed(1)}% usage`,
+            changeColor: thresholdUsage >= 100 ? "text-red-400" : thresholdUsage >= 60 ? "text-yellow-400" : dark ? "text-gray-500" : "text-gray-400",
+            icon: changePercent >= 0 ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />,
+            iconBg: "bg-emerald-500/10 text-emerald-400",
           },
           {
-            label: 'Active Monitors',
-            value: '3',
-            change: 'Contracts watched',
-            changeColor: dark ? 'text-gray-500' : 'text-gray-400',
+            label: "Window Size",
+            value: `${monitoringConfig.windowSeconds}s`,
+            change: "Configurable in Configure page",
+            changeColor: dark ? "text-gray-500" : "text-gray-400",
             icon: <Eye size={20} />,
-            iconBg: 'bg-purple-500/10 text-purple-400',
+            iconBg: "bg-purple-500/10 text-purple-400",
           },
           {
-            label: 'Response Time',
-            value: '< 50ms',
-            change: 'Sub-second latency',
-            changeColor: dark ? 'text-gray-500' : 'text-gray-400',
+            label: "Stream Latency",
+            value: "< 1s",
+            change: streamState === "error" && streamError ? streamError : "Somnia Reactivity WebSocket",
+            changeColor: streamState === "error" ? "text-red-400" : dark ? "text-gray-500" : "text-gray-400",
             icon: <Activity size={20} />,
-            iconBg: 'bg-blue-500/10 text-blue-400',
+            iconBg: "bg-blue-500/10 text-blue-400",
           },
         ].map((card, i) => (
           <div
@@ -193,22 +368,21 @@ export default function Dashboard() {
             data-pop
             data-spotlight
             className={`p-5 rounded-2xl border transition-colors ${
-              dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'
+              dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"
             }`}
           >
             <div className="flex items-start justify-between mb-3">
-              <span className={`text-xs font-medium uppercase tracking-wider ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{card.label}</span>
+              <span className={`text-xs font-medium uppercase tracking-wider ${dark ? "text-gray-500" : "text-gray-400"}`}>{card.label}</span>
               <div className={`pop-icon w-8 h-8 rounded-lg flex items-center justify-center ${card.iconBg}`}>{card.icon}</div>
             </div>
-            <div className={`text-2xl font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>{card.value}</div>
+            <div className={`text-2xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>{card.value}</div>
             <span className={`text-xs ${card.changeColor}`}>{card.change}</span>
           </div>
         ))}
       </div>
 
-      {/* Chart */}
       <div
-        className={`p-6 rounded-2xl border mb-8 ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`}
+        className={`p-6 rounded-2xl border mb-8 ${dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"}`}
         data-reveal
         data-reveal-delay={90}
         data-tilt
@@ -218,47 +392,42 @@ export default function Dashboard() {
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>TVL Live Monitor</h2>
-            <p className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Real-time Total Value Locked tracking</p>
+            <h2 className={`text-lg font-bold ${dark ? "text-white" : "text-gray-900"}`}>Reactivity Event Stream</h2>
+            <p className={`text-xs ${dark ? "text-gray-500" : "text-gray-400"}`}>Rolling count over configured detection window</p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-            <span className={`pop-chip text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>LIVE</span>
+            <div className={`w-2 h-2 rounded-full ${streamState === "live" ? "bg-cyan-400 animate-pulse" : "bg-gray-500"}`} />
+            <span className={`pop-chip text-xs ${stream.className}`}>{stream.label}</span>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={350}>
-          <AreaChart data={tvlData}>
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={metricData}>
             <defs>
-              <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="eventGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.3} />
                 <stop offset="100%" stopColor="#06b6d4" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={dark ? '#1e293b' : '#e5e7eb'} />
-            <XAxis dataKey="time" tick={{ fontSize: 10, fill: dark ? '#64748b' : '#9ca3af' }} interval="preserveStartEnd" />
-            <YAxis
-              tick={{ fontSize: 10, fill: dark ? '#64748b' : '#9ca3af' }}
-              tickFormatter={(v: number) => `$${(v / 1000000).toFixed(2)}M`}
-              domain={['auto', 'auto']}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke={dark ? "#1e293b" : "#e5e7eb"} />
+            <XAxis dataKey="time" tick={{ fontSize: 10, fill: dark ? "#64748b" : "#9ca3af" }} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10, fill: dark ? "#64748b" : "#9ca3af" }} allowDecimals={false} domain={[0, "auto"]} />
             <Tooltip
               contentStyle={{
-                backgroundColor: dark ? '#111827' : '#fff',
-                border: `1px solid ${dark ? '#1e293b' : '#e5e7eb'}`,
-                borderRadius: '12px',
-                fontSize: '12px',
-                color: dark ? '#e5e7eb' : '#1f2937',
+                backgroundColor: dark ? "#111827" : "#fff",
+                border: `1px solid ${dark ? "#1e293b" : "#e5e7eb"}`,
+                borderRadius: "12px",
+                fontSize: "12px",
+                color: dark ? "#e5e7eb" : "#1f2937",
               }}
-              formatter={(value: unknown) => [`$${Number(value).toLocaleString()}`, 'TVL']}
+              formatter={(value: unknown) => [`${Number(value)} events`, "Window count"]}
             />
-            <Area type="monotone" dataKey="tvl" stroke="#06b6d4" strokeWidth={2} fill="url(#tvlGradient)" />
+            <Area type="monotone" dataKey="events" stroke="#06b6d4" strokeWidth={2} fill="url(#eventGradient)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Activity Log */}
       <div
-        className={`rounded-2xl border overflow-hidden ${dark ? 'bg-argus-card/50 border-argus-border' : 'bg-white border-gray-200'}`}
+        className={`rounded-2xl border overflow-hidden ${dark ? "bg-argus-card/50 border-argus-border" : "bg-white border-gray-200"}`}
         data-reveal
         data-reveal-delay={120}
         data-tilt
@@ -267,31 +436,31 @@ export default function Dashboard() {
         data-tilt-strength={4.6}
       >
         <div className="p-6 pb-4">
-          <h2 className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Activity Log</h2>
-          <p className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Recent transactions on monitored contracts</p>
+          <h2 className={`text-lg font-bold ${dark ? "text-white" : "text-gray-900"}`}>Activity Log</h2>
+          <p className={`text-xs ${dark ? "text-gray-500" : "text-gray-400"}`}>Recent live events pushed by Somnia Reactivity</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className={`text-xs uppercase tracking-wider border-b ${
-                dark ? 'text-gray-500 border-argus-border' : 'text-gray-400 border-gray-200'
+                dark ? "text-gray-500 border-argus-border" : "text-gray-400 border-gray-200"
               }`}>
                 <th className="text-left px-6 py-3 font-medium">Time</th>
-                <th className="text-left px-6 py-3 font-medium">Wallet</th>
-                <th className="text-left px-6 py-3 font-medium">Amount</th>
-                <th className="text-left px-6 py-3 font-medium">Type</th>
+                <th className="text-left px-6 py-3 font-medium">Emitter/Actor</th>
+                <th className="text-left px-6 py-3 font-medium">Topic0</th>
+                <th className="text-left px-6 py-3 font-medium">Data</th>
                 <th className="text-left px-6 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {transactions.map((tx) => (
                 <tr key={tx.id} data-reveal="left" data-reveal-delay={40} className={`surface-row border-b transition-colors ${
-                  dark ? 'border-argus-border/50 hover:bg-white/[0.02]' : 'border-gray-100 hover:bg-gray-50'
-                } ${tx.status === 'suspicious' ? (dark ? 'bg-yellow-500/5' : 'bg-yellow-50') : ''} ${tx.status === 'blocked' ? (dark ? 'bg-red-500/5' : 'bg-red-50') : ''}`}>
+                  dark ? "border-argus-border/50 hover:bg-white/[0.02]" : "border-gray-100 hover:bg-gray-50"
+                } ${tx.status === "suspicious" ? (dark ? "bg-yellow-500/5" : "bg-yellow-50") : ""} ${tx.status === "blocked" ? (dark ? "bg-red-500/5" : "bg-red-50") : ""}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <Clock size={14} className={dark ? 'text-gray-500' : 'text-gray-400'} />
-                      <span className={`text-sm font-mono ${dark ? 'text-gray-300' : 'text-gray-700'}`}>{tx.time}</span>
+                      <Clock size={14} className={dark ? "text-gray-500" : "text-gray-400"} />
+                      <span className={`text-sm font-mono ${dark ? "text-gray-300" : "text-gray-700"}`}>{tx.time}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -300,33 +469,28 @@ export default function Dashboard() {
                       <span className="text-sm font-mono text-cyan-400">{tx.wallet}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-sm font-semibold ${tx.type === 'deposit' ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {tx.amount}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                      tx.type === 'deposit'
-                        ? dark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
-                        : dark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600'
-                    }`}>
-                      {tx.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
-                    </span>
-                  </td>
+                  <td className="px-6 py-4"><span className="text-xs font-mono text-cyan-400">{tx.topic0}</span></td>
+                  <td className="px-6 py-4"><span className={`text-xs font-mono ${dark ? "text-gray-400" : "text-gray-600"}`}>{tx.dataPreview}</span></td>
                   <td className="px-6 py-4">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                      tx.status === 'normal'
-                        ? dark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
-                        : tx.status === 'suspicious'
-                          ? dark ? 'bg-yellow-500/10 text-yellow-400' : 'bg-yellow-50 text-yellow-600'
-                          : dark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'
+                      tx.status === "normal"
+                        ? dark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"
+                        : tx.status === "suspicious"
+                          ? dark ? "bg-yellow-500/10 text-yellow-400" : "bg-yellow-50 text-yellow-600"
+                          : dark ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600"
                     }`}>
                       {tx.status}
                     </span>
                   </td>
                 </tr>
               ))}
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={5} className={`px-6 py-8 text-center text-sm ${dark ? "text-gray-500" : "text-gray-400"}`}>
+                    Waiting for live events from Somnia Reactivity subscription...
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
