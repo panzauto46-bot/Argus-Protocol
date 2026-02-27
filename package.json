@@ -9,12 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@somnia-chain/reactivity": "^0.1.10",
     "clsx": "2.1.1",
+    "ethers": "^6.16.0",
     "lucide-react": "^0.575.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
-    "tailwind-merge": "3.4.0"
+    "tailwind-merge": "3.4.0",
+    "viem": "^2.37.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.17",
