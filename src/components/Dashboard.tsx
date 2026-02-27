@@ -686,7 +686,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {transactions.map((tx) => (
-                <tr key={tx.id} data-reveal="left" data-reveal-delay={40} className={`surface-row border-b transition-colors ${
+                <tr key={tx.id} className={`surface-row border-b transition-colors ${
                   dark ? "border-argus-border/50 hover:bg-white/[0.02]" : "border-gray-100 hover:bg-gray-50"
                 } ${tx.status === "suspicious" ? (dark ? "bg-yellow-500/5" : "bg-yellow-50") : ""} ${tx.status === "blocked" ? (dark ? "bg-red-500/5" : "bg-red-50") : ""}`}>
                   <td className="px-6 py-4">
